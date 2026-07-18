@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#2b1608">
+  <title>Hex Heroes</title>
+  <meta name="description" content="Hex Heroes — a free browser tribute to Heroes of Might & Magic. Move your hero across a hex map, capture mines and creature dwellings, and fight tactical hex battles against an AI opponent.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ============ HOME ============ -->
+  <section id="screen-home" class="screen">
+    <div class="home-hero">
+      <h1>Hex <span class="accent">Heroes</span></h1>
+      <p class="tagline">A Heroes of Might &amp; Magic tribute. Capture mines. Grow your army. Fight it out on the hex battlefield.</p>
+    </div>
+    <div class="home-actions">
+      <button id="btn-new-game" class="btn btn-primary btn-big">⚔️ New Game</button>
+      <button id="btn-how-to-play" class="btn btn-ghost btn-small">❓ How to Play</button>
+    </div>
+    <footer class="home-footer">Free · No ads · No accounts · Single-player vs. AI (v1)</footer>
+  </section>
+
+  <!-- ============ HOW TO PLAY ============ -->
+  <dialog id="dialog-how-to-play">
+    <div class="htp-body">
+      <h2>How to Play</h2>
+      <ol class="htp-steps">
+        <li>Pick your hero type, then <strong>Start Game</strong>. You and
+          an AI opponent each start at opposite corners of the hex map.</li>
+        <li><strong>Move</strong> — click a hex to move your hero there
+          (pathfound automatically). Each hex costs 1 of your day's
+          movement points.</li>
+        <li>Walking onto an unguarded mine or dwelling <strong>captures
+          it</strong> instantly — mines add resources every day, dwellings
+          add new creatures to recruit into your army.</li>
+        <li>Walking onto a guarded mine/dwelling, a monster stack, or the
+          enemy hero starts a <strong>tactical hex battle</strong>.</li>
+        <li>In battle, stacks act in Speed order. On your stack's turn,
+          click a hex to move, or click an adjacent (or, for ranged
+          creatures, any) enemy stack to attack. You can also
+          <strong>Wait</strong> or <strong>Defend</strong>.</li>
+        <li>Win a battle and surviving stacks return to the map with you.
+          Lose your whole army and you respawn at your Keep with a fresh
+          starting army — no permanent loss.</li>
+        <li>Click <strong>End Day</strong> when you're done moving — the AI
+          takes its turn, then a new day begins.</li>
+        <li><strong>Defeat the enemy hero's army</strong> in direct combat
+          to win instantly. Otherwise, the game ends at Day 30 and whoever
+          has the higher Kingdom Score (mines, dwellings, army) wins.</li>
+      </ol>
+      <button id="btn-close-how-to-play" class="btn btn-primary btn-big">Got it!</button>
+    </div>
+  </dialog>
+
+  <!-- ============ SETUP ============ -->
+  <section id="screen-setup" class="screen" hidden>
+    <header class="panel-header">
+      <button id="btn-setup-back" class="btn btn-ghost" aria-label="Back">←</button>
+      <h2>Choose your hero</h2>
+    </header>
+    <div id="hero-type-cards" class="hero-type-grid"></div>
+    <div class="setup-footer">
+      <button id="btn-start-game" class="btn btn-primary btn-big">Start Game</button>
+    </div>
+  </section>
+
+  <!-- ============ ADVENTURE MAP ============ -->
+  <section id="screen-adventure" class="screen" hidden>
+    <header class="adv-header">
+      <span class="pill">Day <span id="adv-day">1</span> / <span id="adv-day-limit">30</span></span>
+      <span class="pill">Moves left: <span id="adv-moves">8</span></span>
+      <span class="pill hero-pill-player"><span id="adv-hero-name">Marshal</span> Lv<span id="adv-hero-level">1</span></span>
+      <button id="btn-end-day" class="btn btn-primary btn-small">🌙 End Day</button>
+    </header>
+
+    <div class="adv-body">
+      <div id="adv-map-wrap" class="adv-map-wrap">
+        <svg id="adv-map" class="hex-map"></svg>
+      </div>
+      <aside class="adv-sidebar">
+        <h3>Army</h3>
+        <ul id="adv-army-list" class="army-list"></ul>
+        <h3>Resources</h3>
+        <ul id="adv-resource-list" class="resource-list"></ul>
+        <p id="adv-selected-info" class="selected-info"></p>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============ BATTLE ============ -->
+  <section id="screen-battle" class="screen" hidden>
+    <header class="battle-header">
+      <span class="pill">Round <span id="battle-round">1</span></span>
+      <span id="battle-turn-owner" class="pill"></span>
+    </header>
+    <div id="battle-turn-order" class="turn-order"></div>
+    <div id="battle-map-wrap" class="adv-map-wrap">
+      <svg id="battle-map" class="hex-map"></svg>
+    </div>
+    <div id="battle-controls" class="battle-controls" hidden>
+      <span id="battle-active-label" class="battle-active-label"></span>
+      <button id="btn-battle-wait" class="btn btn-secondary btn-small">⏭️ Wait</button>
+      <button id="btn-battle-defend" class="btn btn-secondary btn-small">🛡️ Defend</button>
+    </div>
+    <p id="battle-log" class="battle-log"></p>
+  </section>
+
+  <!-- ============ GAME OVER ============ -->
+  <section id="screen-gameover" class="screen" hidden>
+    <div class="home-hero">
+      <div class="home-trophy">🏆</div>
+      <h2 id="gameover-title"></h2>
+      <p id="gameover-reason" class="muted"></p>
+      <div id="gameover-scores" class="final-scores"></div>
+    </div>
+    <div class="home-actions">
+      <button id="btn-play-again" class="btn btn-primary btn-big">🔁 New Game</button>
+    </div>
+  </section>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
