@@ -9,8 +9,8 @@
 // tier's growthPerDay accrues into the hero's recruit pool every endDay;
 // recruiting spends resources to move pool creatures into the army.
 
-import { CREATURES, getCreature } from './creatures.js';
-import { hasArmyRoom, mergeIntoArmy, MAX_ARMY_SLOTS } from './army.js';
+import { getCreature } from './creatures.js';
+import { hasArmyRoom, mergeIntoArmy } from './army.js';
 import { SPELLS } from './spells.js';
 
 const POOL_CAP_MULT = 10; // same ceiling v1 used for per-hex dwelling garrison
@@ -154,30 +154,3 @@ export function learnSpell(state, owner, spellId) {
   return true;
 }
 
-// ---------------------------------------------------------------------
-// Siege militia (specs/003-siege-and-spells) — an undefended Castle is
-// defended by a stack drafted straight from its recruit pool, highest
-// tier first, capped like a normal army (MAX_ARMY_SLOTS). Drafted counts
-// are debited from the pool immediately; survivors return via
-// returnMilitiaSurvivors after the battle resolves.
-// ---------------------------------------------------------------------
-
-export function draftMilitia(hero) {
-  const militia = [];
-  for (let i = CREATURES.length - 1; i >= 0 && militia.length < MAX_ARMY_SLOTS; i--) {
-    const creatureTypeId = CREATURES[i].id;
-    const pool = hero.castle.pool[creatureTypeId] || 0;
-    if (pool <= 0) continue;
-    militia.push({ creatureTypeId, count: pool });
-    hero.castle.pool[creatureTypeId] = 0;
-  }
-  return militia;
-}
-
-// Merge surviving militia stacks back into the pool they were drafted
-// from (they were never lost, just called up — spec.md US-5).
-export function returnMilitiaSurvivors(hero, survivors) {
-  for (const stack of survivors) {
-    hero.castle.pool[stack.creatureTypeId] = (hero.castle.pool[stack.creatureTypeId] || 0) + stack.count;
-  }
-}

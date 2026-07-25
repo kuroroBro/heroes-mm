@@ -8,7 +8,6 @@ import {
 } from '../js/adventure.js';
 import { KEEP_PLAYER, KEEP_AI } from '../js/mapObjects.js';
 import { unlock, learnSpell } from '../js/castle.js';
-import { createBattle, survivingStacks } from '../js/battle.js';
 
 function freshState() {
   return createAdventure('marshal', 'warlord');
@@ -323,15 +322,32 @@ test('getPendingBattleArmies exposes the attacking hero\'s mana and known spells
 // Sieges
 // ---------------------------------------------------------------------
 
-test('walking onto the enemy Keep with their hero away starts a siege battle', () => {
+test('walking onto the enemy Keep with their hero away resolves instantly: loot and move in, no battle', () => {
   const state = freshState();
+  state.heroes.ai.resources.gold = 1000;
+  state.heroes.ai.resources.wood = 50;
   state.heroes.ai.position = { q: KEEP_AI.q - 3, r: KEEP_AI.r }; // hero is away from home
   state.heroes.player.position = { q: KEEP_AI.q - 1, r: KEEP_AI.r };
   const ok = moveHero(state, 'player', KEEP_AI);
   assert.ok(ok);
-  assert.equal(state.phase, 'battle');
-  assert.equal(state.pendingBattle.defenderKind, 'siege');
-  assert.equal(state.pendingBattle.defenderOwner, 'ai');
+  assert.equal(state.phase, 'playing'); // nothing defends an away hero's Keep — no battle
+  assert.equal(state.pendingBattle, null);
+  assert.deepEqual(state.heroes.player.position, KEEP_AI);
+  assert.equal(state.heroes.ai.resources.gold, 1000 - Math.floor(1000 * SIEGE_LOOT_FRACTION));
+  assert.equal(state.heroes.player.resources.gold, Math.floor(1000 * SIEGE_LOOT_FRACTION));
+  assert.equal(state.heroes.ai.resources.wood, 50 - Math.floor(50 * SIEGE_LOOT_FRACTION));
+  const keep = state.hexes.get(key(KEEP_AI));
+  assert.equal(keep.ownerId, 'ai'); // never captured, spec.md US-5 Non-goals
+});
+
+test('a Castle raid never touches the defender\'s recruit pool — an army travels with its hero, not a garrison', () => {
+  const state = freshState();
+  unlock(state.heroes.ai, 'dragon');
+  state.heroes.ai.castle.pool.dragon = 5;
+  state.heroes.ai.position = { q: KEEP_AI.q - 3, r: KEEP_AI.r };
+  state.heroes.player.position = { q: KEEP_AI.q - 1, r: KEEP_AI.r };
+  moveHero(state, 'player', KEEP_AI);
+  assert.equal(state.heroes.ai.castle.pool.dragon, 5);
 });
 
 test('walking onto the enemy hero standing on their own Keep is still the hero-vs-hero trigger', () => {
@@ -341,28 +357,6 @@ test('walking onto the enemy hero standing on their own Keep is still the hero-v
   const ok = moveHero(state, 'player', aiPos);
   assert.ok(ok);
   assert.equal(state.pendingBattle.defenderKind, 'hero');
-});
-
-test('a siege drafts a militia from the defender\'s Castle pool and debits it immediately', () => {
-  const state = freshState();
-  unlock(state.heroes.ai, 'dragon');
-  state.heroes.ai.castle.pool.dragon = 2;
-  state.heroes.ai.position = { q: KEEP_AI.q - 3, r: KEEP_AI.r };
-  state.heroes.player.position = { q: KEEP_AI.q - 1, r: KEEP_AI.r };
-  moveHero(state, 'player', KEEP_AI);
-  assert.deepEqual(state.pendingBattle.militia, [{ creatureTypeId: 'dragon', count: 2 }]);
-  assert.equal(state.heroes.ai.castle.pool.dragon, 0);
-});
-
-test('an undefended Castle with an empty pool is sieged by an empty militia', () => {
-  const state = freshState();
-  state.heroes.ai.position = { q: KEEP_AI.q - 3, r: KEEP_AI.r };
-  state.heroes.player.position = { q: KEEP_AI.q - 1, r: KEEP_AI.r };
-  moveHero(state, 'player', KEEP_AI);
-  assert.deepEqual(state.pendingBattle.militia, []);
-  const armies = getPendingBattleArmies(state);
-  assert.deepEqual(armies.defenderArmy, []);
-  assert.deepEqual(armies.defenderBonus, { attack: 0, defense: 0 }); // no hero, no spells
 });
 
 test('home-turf bonus applies when a hero-vs-hero fight happens at the defender\'s own Keep', () => {
@@ -384,12 +378,12 @@ test('home-turf bonus does not apply when heroes collide away from the Keep', ()
   assert.equal(armies.defenderBonus.defense, state.heroes.ai.defense);
 });
 
-test('isSiegeBattle is true for a militia siege', () => {
+test('isSiegeBattle is false after raiding an away hero\'s undefended Keep (no battle ever starts)', () => {
   const state = freshState();
   state.heroes.ai.position = { q: KEEP_AI.q - 3, r: KEEP_AI.r };
   state.heroes.player.position = { q: KEEP_AI.q - 1, r: KEEP_AI.r };
   moveHero(state, 'player', KEEP_AI);
-  assert.equal(isSiegeBattle(state), true);
+  assert.equal(isSiegeBattle(state), false);
 });
 
 test('isSiegeBattle is true for a hero-vs-hero fight at the defender\'s own Keep', () => {
@@ -426,48 +420,6 @@ test('isSiegeBattle is false with no pending battle', () => {
   assert.equal(isSiegeBattle(state), false);
 });
 
-test('resolveBattleOutcome: winning a siege loots 40% resources, grants XP, and never captures the Keep', () => {
-  const state = freshState();
-  state.heroes.ai.resources.gold = 1000;
-  state.heroes.ai.resources.wood = 50;
-  unlock(state.heroes.ai, 'peasant');
-  state.heroes.ai.castle.pool.peasant = 4;
-  state.heroes.ai.position = { q: KEEP_AI.q - 3, r: KEEP_AI.r };
-  state.heroes.player.position = { q: KEEP_AI.q - 1, r: KEEP_AI.r };
-  moveHero(state, 'player', KEEP_AI);
-
-  resolveBattleOutcome(state, 'attacker', [{ creatureTypeId: 'pikeman', count: 8 }]);
-
-  assert.equal(state.phase, 'playing');
-  assert.equal(state.heroes.ai.resources.gold, 1000 - Math.floor(1000 * SIEGE_LOOT_FRACTION));
-  assert.equal(state.heroes.player.resources.gold, Math.floor(1000 * SIEGE_LOOT_FRACTION));
-  assert.equal(state.heroes.ai.resources.wood, 50 - Math.floor(50 * SIEGE_LOOT_FRACTION));
-  const keep = state.hexes.get(key(KEEP_AI));
-  assert.equal(keep.ownerId, 'ai'); // never captured
-  assert.deepEqual(state.heroes.player.position, KEEP_AI);
-  assert.ok(state.heroes.player.xp > 0);
-});
-
-test('resolveBattleOutcome: a militia repelling a siege returns survivors to the pool and respawns the attacker', () => {
-  const state = freshState();
-  unlock(state.heroes.ai, 'dragon');
-  state.heroes.ai.castle.pool.dragon = 5;
-  state.heroes.ai.position = { q: KEEP_AI.q - 3, r: KEEP_AI.r };
-  state.heroes.player.position = { q: KEEP_AI.q - 1, r: KEEP_AI.r };
-  state.heroes.player.mana = 10;
-  moveHero(state, 'player', KEEP_AI);
-
-  const survivors = [{ creatureTypeId: 'dragon', count: 3 }];
-  resolveBattleOutcome(state, 'defender', survivors);
-
-  assert.equal(state.phase, 'playing');
-  assert.equal(state.heroes.ai.castle.pool.dragon, 3);
-  assert.deepEqual(state.heroes.player.position, KEEP_PLAYER);
-  assert.equal(state.heroes.player.movementLeft, 0);
-  assert.equal(state.heroes.player.mana, MANA_MAX); // restored on respawn, spec.md US-2
-  assert.ok(state.heroes.player.army.length > 0);
-});
-
 test('resolveBattleOutcome syncs remaining battle mana back onto the surviving hero', () => {
   const state = freshState();
   const aiPos = state.heroes.ai.position;
@@ -477,26 +429,6 @@ test('resolveBattleOutcome syncs remaining battle mana back onto the surviving h
 
   resolveBattleOutcome(state, 'attacker', [{ creatureTypeId: 'pikeman', count: 4 }], { attacker: 12 });
   assert.equal(state.heroes.player.mana, 12);
-});
-
-test('end-to-end: sieging a Castle with an empty pool resolves instantly and still loots resources', () => {
-  const state = freshState();
-  state.heroes.ai.resources.gold = 500;
-  state.heroes.ai.position = { q: KEEP_AI.q - 3, r: KEEP_AI.r };
-  state.heroes.player.position = { q: KEEP_AI.q - 1, r: KEEP_AI.r };
-  moveHero(state, 'player', KEEP_AI);
-  assert.deepEqual(state.pendingBattle.militia, []);
-
-  const armies = getPendingBattleArmies(state);
-  const battle = createBattle(armies.attackerArmy, armies.defenderArmy, armies.attackerBonus, armies.defenderBonus);
-  assert.equal(battle.phase, 'over'); // decided the instant it was created — nothing to fight
-  assert.equal(battle.winnerSide, 'attacker');
-
-  const survivors = survivingStacks(battle, 'attacker');
-  resolveBattleOutcome(state, 'attacker', survivors);
-  assert.equal(state.phase, 'playing');
-  assert.equal(state.heroes.player.resources.gold, Math.floor(500 * SIEGE_LOOT_FRACTION));
-  assert.equal(state.heroes.player.xp, 0); // nothing defeated, so no XP
 });
 
 test('resolveBattleOutcome restores full mana when respawning from a lost guard fight', () => {

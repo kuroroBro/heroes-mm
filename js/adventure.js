@@ -9,7 +9,7 @@ import { getCreature } from './creatures.js';
 import { RESOURCES, emptyResourcePool, MINE_YIELD } from './resources.js';
 import { MAP_WIDTH, MAP_HEIGHT, MAP_OBJECTS, KEEP_PLAYER, KEEP_AI } from './mapObjects.js';
 import { MAX_ARMY_SLOTS, armyValue } from './army.js';
-import { initCastle, unlock, accrueGrowth, draftMilitia, returnMilitiaSurvivors } from './castle.js';
+import { initCastle, unlock, accrueGrowth } from './castle.js';
 
 export { MAX_ARMY_SLOTS };
 export const MOVEMENT_PER_DAY = 8;
@@ -143,17 +143,19 @@ export function moveHero(state, owner, targetHex) {
     return true;
   }
   // The enemy's Keep, with their hero away (had the hero been standing
-  // there, the opponent-position check above already fired) — always
-  // attackable, defended by a militia drafted from their Castle's
-  // recruit pool (specs/003-siege-and-spells US-4/US-5). Drafting happens
-  // now, once, so both the battle's starting army and this pendingBattle
-  // record (for XP on resolution) see the exact same snapshot.
+  // there, the opponent-position check above already fired). An army
+  // lives with its hero, not a separate garrison, so an away hero's Keep
+  // has nothing defending it — same as an unguarded mine/dwelling,
+  // this resolves immediately (loot, no battle) rather than drafting any
+  // kind of stand-in defense from the Castle's recruit pool.
   if (occupant && occupant.type === 'keep' && occupant.ownerId !== owner) {
-    const militia = draftMilitia(state.heroes[occupant.ownerId]);
-    state.phase = 'battle';
-    state.pendingBattle = {
-      attackerOwner: owner, defenderKind: 'siege', defenderOwner: occupant.ownerId, hex: targetHex, militia,
-    };
+    const defender = state.heroes[occupant.ownerId];
+    for (const r of RESOURCES) {
+      const looted = Math.floor((defender.resources[r] || 0) * SIEGE_LOOT_FRACTION);
+      defender.resources[r] -= looted;
+      hero.resources[r] += looted;
+    }
+    hero.position = targetHex;
     return true;
   }
   if (occupant && occupant.type === 'monster') {
@@ -185,26 +187,23 @@ export function planMoveTowards(state, owner, targetHex) {
   return path.path[stepIndex];
 }
 
-// True if the current pending battle is a siege — either an undefended
-// Castle's militia (defenderKind 'siege'), or a hero-vs-hero fight
+// True if the current pending battle is a siege — a hero-vs-hero fight
 // happening at the defender's own Keep (spec.md US-4: "fought as a siege
 // ... rather than a plain field battle", same fight that gets the
 // home-turf bonus in getPendingBattleArmies below). Used by main.js to
-// decide whether to show the siege battlefield backdrop.
+// decide whether to show the siege battlefield backdrop. (An away hero's
+// undefended Keep never reaches battle.js at all — see moveHero.)
 export function isSiegeBattle(state) {
   const pending = state.pendingBattle;
   if (!pending) return false;
-  if (pending.defenderKind === 'siege') return true;
-  if (pending.defenderKind === 'hero') return equals(pending.hex, homeKeep(pending.defenderOwner));
-  return false;
+  return pending.defenderKind === 'hero' && equals(pending.hex, homeKeep(pending.defenderOwner));
 }
 
 // Everything main.js needs from adventure.js to hand off to battle.js.
 // The attacker is always a hero (spec.md US-3), so attackerBonus always
 // carries mana/spellsKnown; the defender only does for defenderKind ===
-// 'hero' (a siege's militia and a neutral guard have no hero, so no
-// spellcasting on that side — battle.js's heroSideFrom treats an absent
-// `mana` field as "no caster").
+// 'hero' (a neutral guard has no hero, so no spellcasting on that side —
+// battle.js's heroSideFrom treats an absent `mana` field as "no caster").
 export function getPendingBattleArmies(state) {
   const pending = state.pendingBattle;
   if (!pending) return null;
@@ -229,8 +228,6 @@ export function getPendingBattleArmies(state) {
     if (equals(pending.hex, homeKeep(pending.defenderOwner))) {
       defenderBonus.defense += HOME_TURF_DEFENSE_BONUS;
     }
-  } else if (pending.defenderKind === 'siege') {
-    defenderArmy = pending.militia.map((s) => ({ ...s }));
   } else {
     const occupant = getObject(state, pending.hex);
     defenderArmy = guardArmy(occupant) || [];
@@ -261,37 +258,6 @@ export function resolveBattleOutcome(state, winnerSide, survivingStacks, remaini
     state.phase = 'gameover';
     state.winner = winnerOwner;
     state.winReason = 'combat';
-    state.pendingBattle = null;
-    return;
-  }
-
-  if (pending.defenderKind === 'siege') {
-    const defender = state.heroes[pending.defenderOwner];
-    if (winnerSide === 'attacker') {
-      attacker.army = survivingStacks.map((s) => ({ ...s }));
-      const defeatedValue = armyValue(pending.militia);
-      attacker.xp += Math.round(defeatedValue * XP_PER_ARMY_VALUE);
-      applyLevelUps(attacker);
-      // Loot (spec.md US-5) — never captures the Keep itself (no ownerId
-      // change, unchanged win condition; specs/003-siege-and-spells
-      // Non-goals).
-      for (const r of RESOURCES) {
-        const looted = Math.floor((defender.resources[r] || 0) * SIEGE_LOOT_FRACTION);
-        defender.resources[r] -= looted;
-        attacker.resources[r] += looted;
-      }
-      attacker.position = pending.hex;
-    } else {
-      // Militia repelled the siege — survivors return to the defender's
-      // pool (they were only drafted, never lost), attacker is wiped and
-      // respawns exactly like losing any other neutral fight (US-6).
-      returnMilitiaSurvivors(defender, survivingStacks);
-      attacker.position = homeKeep(attackerOwner);
-      attacker.army = getHeroType(attacker.heroTypeId).startingArmy.map((s) => ({ ...s }));
-      attacker.movementLeft = 0;
-      attacker.mana = attacker.manaMax;
-    }
-    state.phase = 'playing';
     state.pendingBattle = null;
     return;
   }

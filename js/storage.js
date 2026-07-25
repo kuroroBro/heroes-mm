@@ -6,6 +6,7 @@ const SETTINGS_KEY = 'hexheroes.settings.v1';
 
 export const DEFAULT_SETTINGS = {
   heroTypeId: 'marshal',
+  legendCollapsed: false,
 };
 
 export function loadSettings() {

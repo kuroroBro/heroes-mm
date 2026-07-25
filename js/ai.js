@@ -29,30 +29,16 @@ function hexFromKey(k) {
   return { q, r };
 }
 
-// Rough power of the militia a siege against `hero`'s Castle would face
-// (specs/003-siege-and-spells Decision #8) — summed over the whole
-// current pool, not the capped 7-stack draft castle.js's draftMilitia
-// would actually pick; a deliberate overestimate (safer/more cautious
-// AI) rather than exactly replicating the draft cap here.
-function militiaPower(hero) {
-  let total = 0;
-  for (const [creatureTypeId, count] of Object.entries(hero.castle.pool)) {
-    if (count <= 0) continue;
-    total += creaturePower(getCreature(creatureTypeId)) * count;
-  }
-  return total;
-}
-
 // Adventure-map targeting (plan.md Decision #5, spec.md US-3): nearest
 // reachable unguarded mine/dwelling not already owned by `owner`; else
 // nearest reachable guarded mine/dwelling/monster the owner's army can
 // likely beat; else — specs/003-siege-and-spells Decision #8 — the
-// enemy's Keep, if reachable, their hero isn't standing there (that's
-// just the plain enemy-hero fallback below, not a raid), and the AI's
-// power can likely beat their drafted militia; else the enemy hero's own
-// position (always engage if nothing better is available). Returns a
-// HexCoord or null only if there is truly nothing on the map and no
-// enemy hero (should not happen).
+// enemy's Keep, if reachable and their hero isn't standing there (that's
+// just the plain enemy-hero fallback below, not a raid) — an away hero's
+// Keep has no defense of its own, so this is always a free raid, no power
+// check needed; else the enemy hero's own position (always engage if
+// nothing better is available). Returns a HexCoord or null only if there
+// is truly nothing on the map and no enemy hero (should not happen).
 export function aiSelectTarget(state, owner) {
   const hero = state.heroes[owner];
   const power = armyPower(hero.army);
@@ -72,11 +58,9 @@ export function aiSelectTarget(state, owner) {
     const d = distance(hero.position, hex);
 
     if (occupant.type === 'keep') {
-      if (occupant.ownerId === enemyOwner && !equals(enemyHero.position, hex)) {
-        if (power >= militiaPower(enemyHero) * WINNABLE_POWER_MARGIN && d < siegeDist) {
-          siegeDist = d;
-          siegeTarget = hex;
-        }
+      if (occupant.ownerId === enemyOwner && !equals(enemyHero.position, hex) && d < siegeDist) {
+        siegeDist = d;
+        siegeTarget = hex;
       }
       continue;
     }

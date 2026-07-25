@@ -4,7 +4,7 @@ import { emptyResourcePool } from '../js/resources.js';
 import {
   initCastle, isUnlocked, unlock, accrueGrowth, canAffordBuild, buildDwelling,
   maxRecruitable, canAffordRecruit, recruitCreatures, BUILD_COST, RECRUIT_COST,
-  knowsSpell, canAffordLearnSpell, learnSpell, draftMilitia, returnMilitiaSurvivors,
+  knowsSpell, canAffordLearnSpell, learnSpell,
 } from '../js/castle.js';
 import { SPELLS } from '../js/spells.js';
 
@@ -189,49 +189,3 @@ test('learnSpell fails outright and changes nothing when unaffordable', () => {
   assert.equal(knowsSpell(hero, 'magicArrow'), false);
 });
 
-// ---------------------------------------------------------------------
-// Siege militia
-// ---------------------------------------------------------------------
-
-test('draftMilitia is empty for a hero with nothing unlocked or pooled', () => {
-  const hero = freshHero();
-  assert.deepEqual(draftMilitia(hero), []);
-});
-
-test('draftMilitia drafts every pooled type, highest tier first, and empties the pool', () => {
-  const hero = freshHero();
-  unlock(hero, 'peasant'); // tier 1
-  hero.castle.pool.peasant = 5;
-  unlock(hero, 'dragon'); // tier 10
-  hero.castle.pool.dragon = 2;
-  const militia = draftMilitia(hero);
-  assert.deepEqual(militia, [
-    { creatureTypeId: 'dragon', count: 2 },
-    { creatureTypeId: 'peasant', count: 5 },
-  ]);
-  assert.equal(hero.castle.pool.peasant, 0);
-  assert.equal(hero.castle.pool.dragon, 0);
-});
-
-test('draftMilitia caps at MAX_ARMY_SLOTS stacks, preferring the highest tiers', () => {
-  const hero = freshHero();
-  const tierIds = ['peasant', 'pikeman', 'archer', 'wolf', 'orc', 'griffin', 'ogre', 'skeleton', 'troll', 'dragon'];
-  for (const id of tierIds) {
-    unlock(hero, id);
-    hero.castle.pool[id] = 1;
-  }
-  const militia = draftMilitia(hero);
-  assert.equal(militia.length, 7);
-  assert.deepEqual(militia.map((s) => s.creatureTypeId), ['dragon', 'troll', 'skeleton', 'ogre', 'griffin', 'orc', 'wolf']);
-  // The two lowest tiers (pikeman, peasant) were never drafted — still in the pool.
-  assert.equal(hero.castle.pool.peasant, 1);
-  assert.equal(hero.castle.pool.pikeman, 1);
-});
-
-test('returnMilitiaSurvivors merges survivor counts back into the pool', () => {
-  const hero = freshHero();
-  unlock(hero, 'peasant');
-  hero.castle.pool.peasant = 0; // drafted away
-  returnMilitiaSurvivors(hero, [{ creatureTypeId: 'peasant', count: 3 }]);
-  assert.equal(hero.castle.pool.peasant, 3);
-});

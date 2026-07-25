@@ -295,6 +295,22 @@ function initMapLegend() {
       if (adventureState) renderAdventureMap();
     });
   });
+
+  // Collapsible on demand (the filter row can crowd out the map on a
+  // small/mobile screen) — persisted so a collapse only has to happen
+  // once, not every session.
+  const toggleBtn = $('btn-toggle-legend');
+  const setCollapsed = (collapsed) => {
+    legendBar.classList.toggle('collapsed', collapsed);
+    toggleBtn.textContent = collapsed ? 'Show ▼' : 'Hide ▲';
+    toggleBtn.setAttribute('aria-expanded', String(!collapsed));
+  };
+  setCollapsed(settings.legendCollapsed);
+  toggleBtn.addEventListener('click', () => {
+    settings = { ...settings, legendCollapsed: !legendBar.classList.contains('collapsed') };
+    saveSettings(settings);
+    setCollapsed(settings.legendCollapsed);
+  });
 }
 setTimeout(initMapLegend, 0);
 

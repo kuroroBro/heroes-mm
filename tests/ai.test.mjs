@@ -211,30 +211,28 @@ test('chooseAiCastleActions also learns the cheapest affordable not-yet-known sp
 // Siege targeting
 // ---------------------------------------------------------------------
 
-test('aiSelectTarget raids the enemy Keep when nothing free/winnable exists and the militia is beatable', () => {
+test('aiSelectTarget raids the enemy Keep when nothing free/winnable exists', () => {
   const keepHex = { q: 3, r: 0 };
   const enemyAwayPos = { q: 20, r: 20 };
   const state = adventureFixture({
-    army: [{ creatureTypeId: 'dragon', count: 5 }], // overwhelming power
+    army: [{ creatureTypeId: 'dragon', count: 5 }],
     enemyPos: enemyAwayPos,
     hexes: [[keepHex, { type: 'keep', ownerId: 'player' }]],
   });
-  state.heroes.player.castle = { pool: { peasant: 3 } }; // weak militia
   const target = aiSelectTarget(state, 'ai');
   assert.deepEqual(target, keepHex);
 });
 
-test('aiSelectTarget skips a Keep it cannot beat the militia of, falling back to the enemy hero', () => {
+test('aiSelectTarget still raids an away enemy Keep even with a very weak army — it has no defense to weigh', () => {
   const keepHex = { q: 3, r: 0 };
   const enemyAwayPos = { q: 20, r: 20 };
   const state = adventureFixture({
-    army: [{ creatureTypeId: 'peasant', count: 1 }], // very weak
+    army: [{ creatureTypeId: 'peasant', count: 1 }],
     enemyPos: enemyAwayPos,
     hexes: [[keepHex, { type: 'keep', ownerId: 'player' }]],
   });
-  state.heroes.player.castle = { pool: { dragon: 10 } }; // overwhelming militia
   const target = aiSelectTarget(state, 'ai');
-  assert.deepEqual(target, enemyAwayPos);
+  assert.deepEqual(target, keepHex);
 });
 
 // ---------------------------------------------------------------------

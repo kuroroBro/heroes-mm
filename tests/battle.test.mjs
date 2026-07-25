@@ -22,10 +22,10 @@ function basicBattle(rng = rngZero) {
   );
 }
 
-test('createBattle immediately resolves a battle that starts with an empty side (e.g. an undefended siege militia)', () => {
+test('createBattle immediately resolves a battle that starts with an empty side', () => {
   const state = createBattle(
     [{ creatureTypeId: 'pikeman', count: 10 }],
-    [], // empty militia (specs/003-siege-and-spells US-5)
+    [], // empty defending side
     { attack: 0, defense: 0 }, { attack: 0, defense: 0 },
   );
   assert.equal(state.phase, 'over');

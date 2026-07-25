@@ -161,10 +161,6 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
 
 /* Map Legend Filter Bar */
 .map-legend-bar {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex-wrap: wrap;
   width: 100%;
   max-width: 60rem;
   margin-bottom: 0.8rem;
@@ -173,12 +169,36 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
   padding: 0.4rem 0.8rem;
   border-radius: var(--radius);
 }
+.legend-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+.legend-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+.map-legend-bar.collapsed .legend-buttons { display: none; }
+.map-legend-bar.collapsed .legend-header { margin: -0.05rem 0; }
 .legend-label {
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--text-dim);
   margin-right: 0.4rem;
 }
+.legend-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+}
+.legend-toggle-btn:hover { color: var(--accent); }
 .legend-btn {
   background: var(--bg-2);
   border: 1px solid var(--surface-border);

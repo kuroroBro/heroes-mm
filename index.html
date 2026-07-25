@@ -98,14 +98,19 @@
     </header>
 
     <div class="map-legend-bar" id="map-legend-bar">
-      <span class="legend-label">Filter:</span>
-      <button type="button" class="legend-btn active" data-filter="all">All</button>
-      <button type="button" class="legend-btn" data-filter="keep">🏰 Keeps</button>
-      <button type="button" class="legend-btn" data-filter="mine">⛏️ Mines</button>
-      <button type="button" class="legend-btn" data-filter="monster">💀 Monsters</button>
-      <button type="button" class="legend-btn" data-filter="hero">🛡️ Heroes</button>
-      <button type="button" class="legend-btn" data-filter="dwelling">🛖 Dwellings</button>
-      <button type="button" class="legend-btn" data-filter="treasure">💎 Treasures</button>
+      <div class="legend-header">
+        <span class="legend-label">Filter:</span>
+        <button type="button" id="btn-toggle-legend" class="legend-toggle-btn" aria-expanded="true" aria-controls="legend-buttons">Hide ▲</button>
+      </div>
+      <div class="legend-buttons" id="legend-buttons">
+        <button type="button" class="legend-btn active" data-filter="all">All</button>
+        <button type="button" class="legend-btn" data-filter="keep">🏰 Keeps</button>
+        <button type="button" class="legend-btn" data-filter="mine">⛏️ Mines</button>
+        <button type="button" class="legend-btn" data-filter="monster">💀 Monsters</button>
+        <button type="button" class="legend-btn" data-filter="hero">🛡️ Heroes</button>
+        <button type="button" class="legend-btn" data-filter="dwelling">🛖 Dwellings</button>
+        <button type="button" class="legend-btn" data-filter="treasure">💎 Treasures</button>
+      </div>
     </div>
 
     <div class="adv-body">
