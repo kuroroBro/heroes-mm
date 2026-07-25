@@ -7,7 +7,7 @@ import {
   MANA_MAX, HOME_TURF_DEFENSE_BONUS, SIEGE_LOOT_FRACTION, isSiegeBattle,
 } from '../js/adventure.js';
 import { KEEP_PLAYER, KEEP_AI } from '../js/mapObjects.js';
-import { unlock, learnSpell } from '../js/castle.js';
+import { unlock, learnSpell, recruitCreatures, maxRecruitable } from '../js/castle.js';
 
 function freshState() {
   return createAdventure('marshal', 'warlord');
@@ -167,6 +167,50 @@ test('resolveBattleOutcome: capturing a dwelling unlocks its creature type in th
   assert.equal(dwelling.ownerId, 'player');
   assert.equal(state.heroes.player.castle.unlocked.has('archer'), true);
   assert.equal(state.heroes.player.castle.pool.archer, 0); // unlocked, not instantly granted
+});
+
+test('a dwelling changing hands never touches the previous owner\'s already-recruited army or pool', () => {
+  const state = freshState();
+  let archerDwellingHex = null;
+  for (const [k, obj] of state.hexes) {
+    if (obj.type === 'dwelling' && obj.creatureTypeId === 'archer') {
+      const [q, r] = k.split(',').map(Number);
+      archerDwellingHex = { q, r };
+    }
+  }
+  assert.ok(archerDwellingHex, 'fixture expects an archer dwelling on the map');
+
+  // Player clears the guard, captures the dwelling, and actually recruits
+  // into their real field army (not just unlocking it).
+  state.heroes.player.position = { q: archerDwellingHex.q - 1, r: archerDwellingHex.r };
+  moveHero(state, 'player', archerDwellingHex);
+  resolveBattleOutcome(state, 'attacker', [{ creatureTypeId: 'pikeman', count: 8 }]);
+  state.heroes.player.resources.gold = 100000;
+  state.heroes.player.castle.pool.archer = 8;
+  recruitCreatures(state, 'player', 'archer', maxRecruitable(state.heroes.player, 'archer'));
+  const playerArmyBefore = JSON.parse(JSON.stringify(state.heroes.player.army));
+  assert.ok(playerArmyBefore.some((s) => s.creatureTypeId === 'archer' && s.count > 0));
+
+  // Player's hero moves on, away from the dwelling — otherwise the AI
+  // "capturing" it below would actually be a hero-vs-hero collision, not
+  // a dwelling recapture.
+  state.heroes.player.position = KEEP_PLAYER;
+
+  // Later, the AI's hero walks onto that same now-unguarded dwelling and
+  // claims it for itself — a legitimate, separate claim (contested map
+  // economy), not something that should reach back into what the player
+  // already recruited.
+  const dwelling = state.hexes.get(key(archerDwellingHex));
+  dwelling.guard = null;
+  state.heroes.ai.position = { q: archerDwellingHex.q + 1, r: archerDwellingHex.r };
+  state.heroes.ai.movementLeft = MOVEMENT_PER_DAY;
+  const moved = moveHero(state, 'ai', archerDwellingHex);
+
+  assert.ok(moved);
+  assert.equal(dwelling.ownerId, 'ai');
+  assert.equal(state.heroes.ai.castle.unlocked.has('archer'), true); // AI gets its own fresh claim
+  assert.equal(state.heroes.ai.castle.pool.archer, 0); // starts at 0, not inherited from the player
+  assert.deepEqual(state.heroes.player.army, playerArmyBefore); // untouched
 });
 
 test('resolveBattleOutcome: attacker loses to a neutral guard, respawns at home keep', () => {
