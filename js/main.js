@@ -1,5 +1,5 @@
 import { key, equals, axialToPixel, rectHexes, distance as hexDistance } from './hexgrid.js';
-import { RESOURCES } from './resources.js';
+import { RESOURCES, MINE_YIELD } from './resources.js';
 import { CREATURES, getCreature } from './creatures.js';
 import { HERO_TYPES, getHeroType } from './heroTypes.js';
 import { spritePath } from './sprites.js';
@@ -374,7 +374,7 @@ function getHexInspectionDetails(hex) {
     return {
       category: 'mine',
       title: `${resConf.symbol} ${resConf.label} Mine`,
-      subtitle: `Produces +1 ${resConf.label} per day when captured`,
+      subtitle: `Produces +${MINE_YIELD[occupant.resource]} ${resConf.label} per day when captured`,
       details: [
         `Owner: ${ownerName}`,
         `Guard Status: ${guardDesc}`,
