@@ -104,9 +104,13 @@ const HERO_SPRITES = {
 
 // The battle screen's flying attack-effect icon (js/main.js's
 // showAttackEffect), one per creature id, themed to how that creature
-// actually fights. Only the original 10 have a dedicated one so far —
-// the 18 new creatures fall back to FALLBACK_SPRITE below rather than a
-// dangling path, same as any other not-yet-authored sprite id.
+// actually fights. The original 10 have a dedicated one; 6 of Enkantos's
+// 7 do too, reused directly from pinoy-board's own attack/enemy/ effect
+// icons (same real-art-reuse pattern as the creature portraits — these
+// are already 256x256 RGBA with true alpha, no restyling needed).
+// Santilmo has no matching pinoy-board attack icon and the other 11 new
+// Human/Orc/Undead creatures have no dedicated one yet — all fall back
+// to FALLBACK_SPRITE below rather than a dangling path.
 const ATTACK_SPRITES = {
   'attack-peasant': 'images/creatures/attacks/attack-peasant.png',
   'attack-pikeman': 'images/creatures/attacks/attack-pikeman.png',
@@ -118,6 +122,13 @@ const ATTACK_SPRITES = {
   'attack-skeleton': 'images/creatures/attacks/attack-skeleton.png',
   'attack-troll': 'images/creatures/attacks/attack-troll.png',
   'attack-dragon': 'images/creatures/attacks/attack-dragon.png',
+  // Enkantos (pinoy-board reuse)
+  'attack-duwende': 'images/creatures/attacks/attack-duwende.png',
+  'attack-manananggal': 'images/creatures/attacks/attack-manananggal.png',
+  'attack-tikbalang': 'images/creatures/attacks/attack-tikbalang.png',
+  'attack-aswang': 'images/creatures/attacks/attack-aswang.png',
+  'attack-kapre': 'images/creatures/attacks/attack-kapre.png',
+  'attack-bakunawa': 'images/creatures/attacks/attack-bakunawa.png',
 };
 
 const ALL_SPRITES = { ...OBJECT_SPRITES, ...CREATURE_SPRITES, ...HERO_SPRITES, ...ATTACK_SPRITES };
