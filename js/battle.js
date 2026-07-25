@@ -2,7 +2,7 @@
 // and plan.md's Decision #2 (damage formula) and Decision #1 (shared hex
 // math with the adventure map).
 
-import { key, equals, distance, findPath, reachable } from './hexgrid.js';
+import { key, equals, distance, findPath, reachable, inRect } from './hexgrid.js';
 import { getCreature } from './creatures.js';
 import { getSpell } from './spells.js';
 
@@ -182,9 +182,16 @@ export function isObstacleHex(state, hex) {
   return state.walls.has(key(hex));
 }
 
+// hex.q/hex.r is an axial coordinate on the same "offset column" grid as
+// the adventure map (rectHexes: axial r = row - floor(q/2)) — a plain
+// `r >= 0 && r < height` check is wrong here since r legitimately goes
+// negative for any q past column 0 (e.g. q=9's row 0 is r=-4). Reuse
+// inRect, the same conversion the adventure map already uses, instead of
+// a naive rectangular bound that silently treats most of the right half
+// of the battlefield as off-grid.
 function isPassable(state, ignoreStackId) {
   return (hex) => {
-    if (hex.q < 0 || hex.q >= state.width || hex.r < 0 || hex.r >= state.height) return false;
+    if (!inRect(hex, state.width, state.height)) return false;
     if (isObstacleHex(state, hex)) return false;
     const occupant = getStackAt(state, hex);
     if (!occupant) return true;

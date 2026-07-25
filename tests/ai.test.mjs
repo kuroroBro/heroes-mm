@@ -136,6 +136,27 @@ test('aiChooseBattleMove returns null when already adjacent to an enemy', () => 
   assert.equal(aiChooseBattleMove(state, pikeman.id), null);
 });
 
+test('aiChooseBattleMove finds a real move for a defender-side stack boxed in only by the old (buggy) negative-r bounds check', () => {
+  // Same root cause as battle.js's own regression test: a defender-side
+  // stack near the top of a multi-stack formation lands on a negative
+  // axial r (e.g. q=9, r=-2), which battlePassable's old naive
+  // `r >= 0 && r < height` check wrongly treated as off-grid, rejecting
+  // every neighbor and leaving aiChooseBattleMove with nothing to return.
+  const state = createBattle(
+    [{ creatureTypeId: 'peasant', count: 1 }],
+    [
+      { creatureTypeId: 'wolf', count: 8 },
+      { creatureTypeId: 'orc', count: 4 },
+      { creatureTypeId: 'peasant', count: 30 },
+    ],
+    { attack: 0, defense: 0 }, { attack: 0, defense: 0 },
+  );
+  const wolf = state.stacks.find((s) => s.creatureTypeId === 'wolf');
+  assert.ok(wolf.position.r < 0, 'fixture expects the topmost defender stack to land on a negative r');
+  const decision = aiChooseBattleMove(state, wolf.id);
+  assert.ok(decision, 'expected a real move decision, not null');
+});
+
 function hexDistance(a, b) {
   const dq = a.q - b.q;
   const dr = a.r - b.r;

@@ -4,7 +4,7 @@
 // main.js is responsible for actually applying the returned decision via
 // adventure.js/battle.js.
 
-import { distance, reachable, equals } from './hexgrid.js';
+import { distance, reachable, equals, inRect } from './hexgrid.js';
 import { getCreature, creaturePower, CREATURES } from './creatures.js';
 import {
   canAffordBuild, buildDwelling, maxRecruitable, recruitCreatures,
@@ -108,9 +108,13 @@ export function aiSelectTarget(state, owner) {
 // isObstacleHex source battle.js's own internal passability check uses —
 // otherwise the AI could believe a standing wall hex is reachable (or a
 // destroyed one still blocked) and stall trying to act on that belief.
+// Same offset-column axial grid as the adventure map (see battle.js's own
+// isPassable) — must use inRect's row/qOffset conversion, not a naive
+// `r >= 0 && r < height` check, or roughly half the battlefield reads as
+// off-grid.
 function battlePassable(state, ignoreStackId) {
   return (hex) => {
-    if (hex.q < 0 || hex.q >= state.width || hex.r < 0 || hex.r >= state.height) return false;
+    if (!inRect(hex, state.width, state.height)) return false;
     if (isObstacleHex(state, hex)) return false;
     const occupant = state.stacks.find((s) => s.count > 0 && s.position.q === hex.q && s.position.r === hex.r);
     return !occupant || occupant.id === ignoreStackId;

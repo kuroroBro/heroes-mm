@@ -108,6 +108,32 @@ test('reachableHexes never includes an occupied hex', () => {
   assert.ok(!hexes.some((h) => h.q === defender.position.q && h.r === defender.position.r));
 });
 
+test('a defender-side stack (negative axial r, e.g. q=9 has valid r down to -4) is not boxed in', () => {
+  // isPassable used to bounds-check the raw axial r against
+  // [0, BATTLE_HEIGHT) directly, which is only correct at q=0 — the
+  // battlefield is the same offset-column grid as the adventure map,
+  // where a hex's valid r range shifts negative with every +1 to q
+  // (qOffset = floor(q/2)). Every defender-side stack starting near the
+  // top of the formation (q=BATTLE_WIDTH-2, low row -> negative r) had
+  // every neighbor wrongly rejected as "off-grid", leaving it with zero
+  // legal moves — reachableHexes returning just its own hex.
+  const state = createBattle(
+    [{ creatureTypeId: 'peasant', count: 1 }],
+    [
+      { creatureTypeId: 'wolf', count: 8 },
+      { creatureTypeId: 'orc', count: 4 },
+      { creatureTypeId: 'peasant', count: 30 },
+      { creatureTypeId: 'archer', count: 16 },
+      { creatureTypeId: 'pikeman', count: 6 },
+    ],
+    { attack: 0, defense: 0 }, { attack: 0, defense: 0 },
+  );
+  const wolf = state.stacks.find((s) => s.creatureTypeId === 'wolf');
+  assert.ok(wolf.position.r < 0, 'fixture expects the topmost defender stack to land on a negative r');
+  const hexes = reachableHexes(state, wolf.id);
+  assert.ok(hexes.length > 1, `wolf at ${JSON.stringify(wolf.position)} should have real moves, got ${hexes.length}`);
+});
+
 test('melee attack deals damage, reduces stack count, and triggers one retaliation', () => {
   const state = basicBattle(rngZero);
   const attacker = state.stacks.find((s) => s.side === 'attacker');
