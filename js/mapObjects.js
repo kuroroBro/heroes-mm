@@ -43,18 +43,45 @@ export const MAP_OBJECTS = [
   { hex: at(11, 18), object: { type: 'mine', resource: 'gems', ownerId: null, spriteId: 'mine-gems' } },
   { hex: at(18, 3), object: { type: 'mine', resource: 'sulfur', ownerId: null, spriteId: 'mine-sulfur' } },
 
-  // Dwellings — all 10 creature tiers now (the original only had 4:
-  // archer/orc/ogre/troll), each guarded by its own creature type.
-  { hex: at(6, 10), object: { type: 'dwelling', creatureTypeId: 'peasant', ownerId: null, spriteId: 'dwelling-peasant', guard: { creatureTypeId: 'peasant', count: 10 } } },
-  { hex: at(23, 11), object: { type: 'dwelling', creatureTypeId: 'pikeman', ownerId: null, spriteId: 'dwelling-pikeman', guard: { creatureTypeId: 'pikeman', count: 6 } } },
-  { hex: at(8, 6), object: { type: 'dwelling', creatureTypeId: 'archer', ownerId: null, spriteId: 'dwelling-archer', guard: { creatureTypeId: 'archer', count: 6 } } },
-  { hex: at(21, 15), object: { type: 'dwelling', creatureTypeId: 'wolf', ownerId: null, spriteId: 'dwelling-wolf', guard: { creatureTypeId: 'wolf', count: 6 } } },
-  { hex: at(5, 13), object: { type: 'dwelling', creatureTypeId: 'orc', ownerId: null, spriteId: 'dwelling-orc', guard: { creatureTypeId: 'orc', count: 5 } } },
-  { hex: at(24, 8), object: { type: 'dwelling', creatureTypeId: 'griffin', ownerId: null, spriteId: 'dwelling-griffin', guard: { creatureTypeId: 'griffin', count: 4 } } },
-  { hex: at(10, 4), object: { type: 'dwelling', creatureTypeId: 'ogre', ownerId: null, spriteId: 'dwelling-ogre', guard: { creatureTypeId: 'ogre', count: 4 } } },
-  { hex: at(19, 17), object: { type: 'dwelling', creatureTypeId: 'skeleton', ownerId: null, spriteId: 'dwelling-skeleton', guard: { creatureTypeId: 'skeleton', count: 5 } } },
-  { hex: at(13, 10), object: { type: 'dwelling', creatureTypeId: 'troll', ownerId: null, spriteId: 'dwelling-troll', guard: { creatureTypeId: 'troll', count: 4 } } },
-  { hex: at(16, 11), object: { type: 'dwelling', creatureTypeId: 'dragon', ownerId: null, spriteId: 'dwelling-dragon', guard: { creatureTypeId: 'dragon', count: 2 } } },
+  // Dwellings — all 28 creature types now (specs/005-castle-factions),
+  // one per creature, each guarded by its own creature type at a count
+  // that scales down by tier (T1=10 ... T7=2, weaker-individually tiers
+  // get bigger guard mobs). Placed as mirrored pairs, same (col,row) <->
+  // (W-1-col,H-1-row) pattern as the rest of this map: Human <-> Undead,
+  // Orc <-> Enkantos — every hex validated for bounds/collisions by a
+  // throwaway generator script before being hand-written here (same
+  // approach that caught real coordinate bugs in this map's own history).
+  { hex: at(1, 0), object: { type: 'dwelling', creatureTypeId: 'peasant', ownerId: null, spriteId: 'dwelling-peasant', guard: { creatureTypeId: 'peasant', count: 10 } } },
+  { hex: at(4, 0), object: { type: 'dwelling', creatureTypeId: 'pikeman', ownerId: null, spriteId: 'dwelling-pikeman', guard: { creatureTypeId: 'pikeman', count: 8 } } },
+  { hex: at(7, 0), object: { type: 'dwelling', creatureTypeId: 'archer', ownerId: null, spriteId: 'dwelling-archer', guard: { creatureTypeId: 'archer', count: 6 } } },
+  { hex: at(10, 0), object: { type: 'dwelling', creatureTypeId: 'swordsman', ownerId: null, spriteId: 'dwelling-swordsman', guard: { creatureTypeId: 'swordsman', count: 5 } } },
+  { hex: at(13, 0), object: { type: 'dwelling', creatureTypeId: 'griffin', ownerId: null, spriteId: 'dwelling-griffin', guard: { creatureTypeId: 'griffin', count: 4 } } },
+  { hex: at(1, 4), object: { type: 'dwelling', creatureTypeId: 'cavalier', ownerId: null, spriteId: 'dwelling-cavalier', guard: { creatureTypeId: 'cavalier', count: 3 } } },
+  { hex: at(4, 4), object: { type: 'dwelling', creatureTypeId: 'dragon', ownerId: null, spriteId: 'dwelling-dragon', guard: { creatureTypeId: 'dragon', count: 2 } } },
+
+  { hex: at(28, 21), object: { type: 'dwelling', creatureTypeId: 'skeleton', ownerId: null, spriteId: 'dwelling-skeleton', guard: { creatureTypeId: 'skeleton', count: 10 } } },
+  { hex: at(25, 21), object: { type: 'dwelling', creatureTypeId: 'zombie', ownerId: null, spriteId: 'dwelling-zombie', guard: { creatureTypeId: 'zombie', count: 8 } } },
+  { hex: at(22, 21), object: { type: 'dwelling', creatureTypeId: 'ghost', ownerId: null, spriteId: 'dwelling-ghost', guard: { creatureTypeId: 'ghost', count: 6 } } },
+  { hex: at(19, 21), object: { type: 'dwelling', creatureTypeId: 'wraith', ownerId: null, spriteId: 'dwelling-wraith', guard: { creatureTypeId: 'wraith', count: 5 } } },
+  { hex: at(16, 21), object: { type: 'dwelling', creatureTypeId: 'vampire', ownerId: null, spriteId: 'dwelling-vampire', guard: { creatureTypeId: 'vampire', count: 4 } } },
+  { hex: at(28, 17), object: { type: 'dwelling', creatureTypeId: 'lich', ownerId: null, spriteId: 'dwelling-lich', guard: { creatureTypeId: 'lich', count: 3 } } },
+  { hex: at(25, 17), object: { type: 'dwelling', creatureTypeId: 'bone-dragon', ownerId: null, spriteId: 'dwelling-bone-dragon', guard: { creatureTypeId: 'bone-dragon', count: 2 } } },
+
+  { hex: at(7, 4), object: { type: 'dwelling', creatureTypeId: 'goblin', ownerId: null, spriteId: 'dwelling-goblin', guard: { creatureTypeId: 'goblin', count: 10 } } },
+  { hex: at(10, 4), object: { type: 'dwelling', creatureTypeId: 'wolf', ownerId: null, spriteId: 'dwelling-wolf', guard: { creatureTypeId: 'wolf', count: 8 } } },
+  { hex: at(13, 4), object: { type: 'dwelling', creatureTypeId: 'orc', ownerId: null, spriteId: 'dwelling-orc', guard: { creatureTypeId: 'orc', count: 6 } } },
+  { hex: at(1, 8), object: { type: 'dwelling', creatureTypeId: 'orc-chieftain', ownerId: null, spriteId: 'dwelling-orc-chieftain', guard: { creatureTypeId: 'orc-chieftain', count: 5 } } },
+  { hex: at(4, 8), object: { type: 'dwelling', creatureTypeId: 'ogre', ownerId: null, spriteId: 'dwelling-ogre', guard: { creatureTypeId: 'ogre', count: 4 } } },
+  { hex: at(7, 8), object: { type: 'dwelling', creatureTypeId: 'troll', ownerId: null, spriteId: 'dwelling-troll', guard: { creatureTypeId: 'troll', count: 3 } } },
+  { hex: at(10, 8), object: { type: 'dwelling', creatureTypeId: 'behemoth', ownerId: null, spriteId: 'dwelling-behemoth', guard: { creatureTypeId: 'behemoth', count: 2 } } },
+
+  { hex: at(22, 17), object: { type: 'dwelling', creatureTypeId: 'duwende', ownerId: null, spriteId: 'dwelling-duwende', guard: { creatureTypeId: 'duwende', count: 10 } } },
+  { hex: at(19, 17), object: { type: 'dwelling', creatureTypeId: 'santilmo', ownerId: null, spriteId: 'dwelling-santilmo', guard: { creatureTypeId: 'santilmo', count: 8 } } },
+  { hex: at(16, 17), object: { type: 'dwelling', creatureTypeId: 'manananggal', ownerId: null, spriteId: 'dwelling-manananggal', guard: { creatureTypeId: 'manananggal', count: 6 } } },
+  { hex: at(28, 13), object: { type: 'dwelling', creatureTypeId: 'tikbalang', ownerId: null, spriteId: 'dwelling-tikbalang', guard: { creatureTypeId: 'tikbalang', count: 5 } } },
+  { hex: at(25, 13), object: { type: 'dwelling', creatureTypeId: 'aswang', ownerId: null, spriteId: 'dwelling-aswang', guard: { creatureTypeId: 'aswang', count: 4 } } },
+  { hex: at(22, 13), object: { type: 'dwelling', creatureTypeId: 'kapre', ownerId: null, spriteId: 'dwelling-kapre', guard: { creatureTypeId: 'kapre', count: 3 } } },
+  { hex: at(19, 13), object: { type: 'dwelling', creatureTypeId: 'bakunawa', ownerId: null, spriteId: 'dwelling-bakunawa', guard: { creatureTypeId: 'bakunawa', count: 2 } } },
 
   // Wandering monsters (no dwelling — one-time XP + tile clear, not
   // recruitable). Was 2, now 6, spanning easy to very hard.

@@ -4,7 +4,7 @@
 // its outcome back onto the map/hero state.
 
 import { key, equals, findPath, inRect } from './hexgrid.js';
-import { getHeroType } from './heroTypes.js';
+import { getFaction } from './factions.js';
 import { getCreature } from './creatures.js';
 import { RESOURCES, emptyResourcePool, MINE_YIELD, KEEP_GOLD_YIELD } from './resources.js';
 import { MAP_WIDTH, MAP_HEIGHT, MAP_OBJECTS, KEEP_PLAYER, KEEP_AI } from './mapObjects.js';
@@ -29,7 +29,7 @@ function otherOwner(owner) {
 }
 
 function createHero(owner, heroTypeId) {
-  const heroType = getHeroType(heroTypeId);
+  const heroType = getFaction(heroTypeId);
   return {
     heroTypeId,
     owner,
@@ -285,7 +285,7 @@ export function resolveBattleOutcome(state, winnerSide, survivingStacks, remaini
     // (spec.md US-6), guard survives with updated (possibly reduced) count.
     if (occupant) occupant.guard = survivingStacks[0] ? { ...survivingStacks[0] } : null;
     attacker.position = homeKeep(attackerOwner);
-    attacker.army = getHeroType(attacker.heroTypeId).startingArmy.map((s) => ({ ...s }));
+    attacker.army = getFaction(attacker.heroTypeId).startingArmy.map((s) => ({ ...s }));
     attacker.movementLeft = 0;
     attacker.mana = attacker.manaMax;
   }

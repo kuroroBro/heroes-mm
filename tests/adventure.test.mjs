@@ -10,7 +10,7 @@ import { KEEP_PLAYER, KEEP_AI } from '../js/mapObjects.js';
 import { unlock, learnSpell, recruitCreatures, maxRecruitable } from '../js/castle.js';
 
 function freshState() {
-  return createAdventure('marshal', 'warlord');
+  return createAdventure('human', 'orc');
 }
 
 test('createAdventure places heroes at their home keeps with starting armies', () => {

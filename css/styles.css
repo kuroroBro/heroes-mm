@@ -256,6 +256,7 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
 .hero-type-card h3 { font-family: var(--font-display); margin: 0 0 0.3rem; }
 .hero-type-stats { color: var(--accent); font-weight: 700; margin: 0 0 0.3rem; font-size: 0.9rem; }
 .hero-type-army { color: var(--text-dim); font-size: 0.8rem; margin: 0; }
+.hero-type-roster { color: var(--text-dim); font-size: 0.7rem; margin: 0.4rem 0 0; opacity: 0.8; line-height: 1.3; }
 
 .setup-footer { margin-top: 2rem; }
 

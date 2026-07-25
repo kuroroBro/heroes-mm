@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Cv Dwelling">
+  <rect width="64" height="64" rx="10" fill="#2b1608"/>
+  <polygon points="12,30 32,12 52,30" fill="#a5843f"/>
+  <rect x="16" y="30" width="32" height="22" fill="#e0c78a" stroke="#a5843f" stroke-width="2"/>
+  <text x="32" y="46" font-family="sans-serif" font-size="16" font-weight="800" fill="#1a0d05" text-anchor="middle">Cv</text>
+</svg>

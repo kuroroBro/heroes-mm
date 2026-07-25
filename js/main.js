@@ -1,7 +1,7 @@
 import { key, equals, axialToPixel, rectHexes, distance as hexDistance } from './hexgrid.js';
 import { RESOURCES, MINE_YIELD, KEEP_GOLD_YIELD } from './resources.js';
-import { CREATURES, getCreature } from './creatures.js';
-import { HERO_TYPES, getHeroType } from './heroTypes.js';
+import { getCreature } from './creatures.js';
+import { FACTIONS, getFaction } from './factions.js';
 import { spritePath } from './sprites.js';
 import {
   createAdventure, moveHero, endDay, kingdomScore, getPendingBattleArmies,
@@ -18,7 +18,7 @@ import {
 } from './ai.js';
 import {
   isUnlocked, canAffordBuild, buildDwelling, maxRecruitable, recruitCreatures, BUILD_COST, RECRUIT_COST,
-  knowsSpell, canAffordLearnSpell, learnSpell,
+  knowsSpell, canAffordLearnSpell, learnSpell, castleRosterFor,
 } from './castle.js';
 import { SPELLS } from './spells.js';
 import { loadSettings, saveSettings } from './storage.js';
@@ -140,21 +140,27 @@ $('btn-setup-back').addEventListener('click', () => showScreen('screen-home'));
 function renderHeroTypeCards() {
   const container = $('hero-type-cards');
   container.innerHTML = '';
-  for (const heroType of HERO_TYPES) {
+  for (const faction of FACTIONS) {
     const card = document.createElement('button');
     card.type = 'button';
-    card.className = 'hero-type-card' + (heroType.id === selectedHeroTypeId ? ' selected' : '');
-    const armySummary = heroType.startingArmy
+    card.className = 'hero-type-card' + (faction.id === selectedHeroTypeId ? ' selected' : '');
+    const armySummary = faction.startingArmy
       .map((s) => `${s.count} ${getCreature(s.creatureTypeId).name}`)
       .join(', ');
+    // specs/005-castle-factions spec.md US-1: a compact tier-order roster
+    // preview (name only, not full stats — same information density as
+    // the rest of this card) so picking a faction also previews what its
+    // Castle will eventually offer.
+    const rosterSummary = faction.creatures.map((id) => getCreature(id).name).join(' → ');
     card.innerHTML = `
-      <img src="${spritePath(heroType.spriteId)}" alt="" width="48" height="48">
-      <h3>${heroType.name}</h3>
-      <p class="hero-type-stats">ATK ${heroType.attack} / DEF ${heroType.defense}</p>
+      <img src="${spritePath(faction.spriteId)}" alt="" width="48" height="48">
+      <h3>${faction.name}</h3>
+      <p class="hero-type-stats">ATK ${faction.attack} / DEF ${faction.defense}</p>
       <p class="hero-type-army">${armySummary}</p>
+      <p class="hero-type-roster">${rosterSummary}</p>
     `;
     card.addEventListener('click', () => {
-      selectedHeroTypeId = heroType.id;
+      selectedHeroTypeId = faction.id;
       renderHeroTypeCards();
     });
     container.appendChild(card);
@@ -164,7 +170,7 @@ function renderHeroTypeCards() {
 $('btn-start-game').addEventListener('click', () => {
   settings = { heroTypeId: selectedHeroTypeId };
   saveSettings(settings);
-  const otherTypes = HERO_TYPES.filter((h) => h.id !== selectedHeroTypeId);
+  const otherTypes = FACTIONS.filter((f) => f.id !== selectedHeroTypeId);
   const aiHeroTypeId = otherTypes[Math.floor(Math.random() * otherTypes.length)].id;
   adventureState = createAdventure(selectedHeroTypeId, aiHeroTypeId);
   aiDayInProgress = false;
@@ -187,7 +193,7 @@ function renderAdventure() {
   $('adv-day').textContent = state.day;
   $('adv-day-limit').textContent = state.dayLimit;
   $('adv-moves').textContent = state.heroes.player.movementLeft;
-  $('adv-hero-name').textContent = getHeroType(state.heroes.player.heroTypeId).name;
+  $('adv-hero-name').textContent = getFaction(state.heroes.player.heroTypeId).name;
   $('adv-hero-level').textContent = state.heroes.player.level;
 
   renderAdventureMap();
@@ -327,7 +333,7 @@ function getHexInspectionDetails(hex) {
   for (const owner of ['player', 'ai']) {
     const hero = state.heroes[owner];
     if (equals(hero.position, hex)) {
-      const heroType = getHeroType(hero.heroTypeId);
+      const heroType = getFaction(hero.heroTypeId);
       const isPlayer = owner === 'player';
       const armyDesc = hero.army.map((s) => `${s.count} ${getCreature(s.creatureTypeId).name}`).join(', ') || 'No army';
       return {
@@ -659,7 +665,7 @@ function renderAdventureMap() {
     const hero = state.heroes[owner];
     const pos = positions.get(key(hero.position));
     if (!pos) continue;
-    const heroType = getHeroType(hero.heroTypeId);
+    const heroType = getFaction(hero.heroTypeId);
     const size = ADV_HEX_SIZE * 1.5;
 
     // Glowing Hero Pedestal Aura
@@ -818,86 +824,109 @@ $('dialog-creature-card').addEventListener('click', (e) => {
   if (e.target === dialog) dialog.close();
 });
 
+// Builds one Castle-screen creature row (used both for the hero's own
+// 7-creature faction roster and, separately, for any off-faction
+// creature captured on the map — specs/005-castle-factions spec.md
+// FR-3/US-2: capturing an off-faction dwelling still unlocks it, it just
+// doesn't belong to the main list).
+function renderCastleRow(list, hero, creature) {
+  const unlocked = isUnlocked(hero, creature.id);
+  const li = document.createElement('li');
+  li.className = 'castle-row' + (unlocked ? '' : ' locked');
+
+  const info = document.createElement('div');
+  info.className = 'castle-row-info';
+  info.style.cursor = 'pointer';
+  info.title = `Click to view ${creature.name} attributes card`;
+  info.addEventListener('click', () => openCreatureCardDialog(creature.id));
+
+  if (unlocked) {
+    const pool = hero.castle.pool[creature.id] || 0;
+    info.innerHTML = `<div class="castle-row-name">${creature.name} (tier ${creature.tier}) ℹ️</div>
+      <div class="castle-row-detail">Pool: ${pool} (+${creature.growthPerDay}/day) · recruit cost: ${formatCost(RECRUIT_COST[creature.id])} each</div>`;
+  } else {
+    info.innerHTML = `<div class="castle-row-name">${creature.name} (tier ${creature.tier}) ℹ️</div>
+      <div class="castle-row-detail">Not built — build cost: ${formatCost(BUILD_COST[creature.id])}</div>`;
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'castle-row-actions';
+
+  const cardBtn = document.createElement('button');
+  cardBtn.type = 'button';
+  cardBtn.className = 'btn btn-ghost btn-small';
+  cardBtn.textContent = 'ℹ️ Card';
+  cardBtn.title = `View ${creature.name} Attributes Card`;
+  cardBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openCreatureCardDialog(creature.id);
+  });
+
+  if (unlocked) {
+    const max = maxRecruitable(hero, creature.id);
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.min = '0';
+    input.max = String(max);
+    input.value = String(max);
+    input.disabled = max === 0;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-primary btn-small';
+    btn.textContent = 'Recruit';
+    btn.disabled = max === 0;
+    btn.addEventListener('click', () => {
+      const count = Math.max(0, Math.min(max, Number(input.value) || 0));
+      if (count > 0 && recruitCreatures(adventureState, 'player', creature.id, count)) renderCastle();
+    });
+    actions.append(cardBtn, input, btn);
+  } else {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-secondary btn-small';
+    btn.textContent = 'Build';
+    btn.disabled = !canAffordBuild(hero, creature.id);
+    btn.addEventListener('click', () => {
+      if (buildDwelling(adventureState, 'player', creature.id)) renderCastle();
+    });
+    actions.append(cardBtn, btn);
+  }
+
+  const img = document.createElement('img');
+  img.src = spritePath('dwelling-' + creature.id);
+  img.alt = '';
+  img.width = 40;
+  img.height = 40;
+  img.style.cursor = 'pointer';
+  img.title = `Click to view ${creature.name} attributes card`;
+  img.addEventListener('click', () => openCreatureCardDialog(creature.id));
+
+  li.append(img, info, actions);
+  list.appendChild(li);
+}
+
 function renderCastle() {
   const hero = adventureState.heroes.player;
   $('castle-resources').textContent = RESOURCES.map((r) => `${r}: ${hero.resources[r]}`).join(' · ');
 
+  const roster = castleRosterFor(hero);
   const list = $('castle-rows');
   list.innerHTML = '';
-  for (const creature of CREATURES) {
-    const unlocked = isUnlocked(hero, creature.id);
-    const li = document.createElement('li');
-    li.className = 'castle-row' + (unlocked ? '' : ' locked');
+  for (const creatureTypeId of roster) {
+    renderCastleRow(list, hero, getCreature(creatureTypeId));
+  }
 
-    const info = document.createElement('div');
-    info.className = 'castle-row-info';
-    info.style.cursor = 'pointer';
-    info.title = `Click to view ${creature.name} attributes card`;
-    info.addEventListener('click', () => openCreatureCardDialog(creature.id));
-
-    if (unlocked) {
-      const pool = hero.castle.pool[creature.id] || 0;
-      info.innerHTML = `<div class="castle-row-name">${creature.name} (tier ${creature.tier}) ℹ️</div>
-        <div class="castle-row-detail">Pool: ${pool} (+${creature.growthPerDay}/day) · recruit cost: ${formatCost(RECRUIT_COST[creature.id])} each</div>`;
-    } else {
-      info.innerHTML = `<div class="castle-row-name">${creature.name} (tier ${creature.tier}) ℹ️</div>
-        <div class="castle-row-detail">Not built — build cost: ${formatCost(BUILD_COST[creature.id])}</div>`;
-    }
-
-    const actions = document.createElement('div');
-    actions.className = 'castle-row-actions';
-
-    const cardBtn = document.createElement('button');
-    cardBtn.type = 'button';
-    cardBtn.className = 'btn btn-ghost btn-small';
-    cardBtn.textContent = 'ℹ️ Card';
-    cardBtn.title = `View ${creature.name} Attributes Card`;
-    cardBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openCreatureCardDialog(creature.id);
-    });
-
-    if (unlocked) {
-      const max = maxRecruitable(hero, creature.id);
-      const input = document.createElement('input');
-      input.type = 'number';
-      input.min = '0';
-      input.max = String(max);
-      input.value = String(max);
-      input.disabled = max === 0;
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn btn-primary btn-small';
-      btn.textContent = 'Recruit';
-      btn.disabled = max === 0;
-      btn.addEventListener('click', () => {
-        const count = Math.max(0, Math.min(max, Number(input.value) || 0));
-        if (count > 0 && recruitCreatures(adventureState, 'player', creature.id, count)) renderCastle();
-      });
-      actions.append(cardBtn, input, btn);
-    } else {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn btn-secondary btn-small';
-      btn.textContent = 'Build';
-      btn.disabled = !canAffordBuild(hero, creature.id);
-      btn.addEventListener('click', () => {
-        if (buildDwelling(adventureState, 'player', creature.id)) renderCastle();
-      });
-      actions.append(cardBtn, btn);
-    }
-
-    const img = document.createElement('img');
-    img.src = spritePath('dwelling-' + creature.id);
-    img.alt = '';
-    img.width = 40;
-    img.height = 40;
-    img.style.cursor = 'pointer';
-    img.title = `Click to view ${creature.name} attributes card`;
-    img.addEventListener('click', () => openCreatureCardDialog(creature.id));
-
-    li.append(img, info, actions);
-    list.appendChild(li);
+  // Off-faction unlocks (specs/005-castle-factions US-2) — a hero can
+  // still capture another faction's dwelling on the map; it unlocks like
+  // always, it just shows here instead of interleaved with the 7 rows
+  // above.
+  const otherList = $('castle-rows-other');
+  const otherTitle = $('castle-rows-other-title');
+  otherList.innerHTML = '';
+  const otherUnlocked = [...hero.castle.unlocked].filter((id) => !roster.includes(id));
+  otherTitle.hidden = otherUnlocked.length === 0;
+  for (const creatureTypeId of otherUnlocked) {
+    renderCastleRow(otherList, hero, getCreature(creatureTypeId));
   }
 
   renderCastleSpells(hero);
@@ -1661,7 +1690,7 @@ function showGameOver() {
   if (state.winner === null) {
     title.textContent = "It's a draw!";
   } else {
-    const heroType = getHeroType(state.heroes[state.winner].heroTypeId);
+    const heroType = getFaction(state.heroes[state.winner].heroTypeId);
     const who = state.winner === 'player' ? 'You' : `The AI (${heroType.name})`;
     title.textContent = `${who} win${state.winner === 'player' ? '' : 's'}!`;
   }

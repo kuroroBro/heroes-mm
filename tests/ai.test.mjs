@@ -257,7 +257,7 @@ test('aiChooseBattleAttack returns null for a melee stack with no adjacent enemy
 function castleFixture(resources) {
   return {
     heroes: {
-      ai: { resources: { ...emptyResourcePool(), ...resources }, army: [], castle: initCastle(), spellbook: new Set() },
+      ai: { heroTypeId: 'human', resources: { ...emptyResourcePool(), ...resources }, army: [], castle: initCastle(), spellbook: new Set() },
     },
   };
 }

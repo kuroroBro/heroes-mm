@@ -5,10 +5,10 @@
 // adventure.js/battle.js.
 
 import { distance, reachable, equals, inRect } from './hexgrid.js';
-import { getCreature, creaturePower, CREATURES } from './creatures.js';
+import { getCreature, creaturePower } from './creatures.js';
 import {
   canAffordBuild, buildDwelling, maxRecruitable, recruitCreatures,
-  canAffordLearnSpell, learnSpell,
+  canAffordLearnSpell, learnSpell, castleRosterFor,
 } from './castle.js';
 import { canCastSpell, isObstacleHex } from './battle.js';
 import { SPELLS } from './spells.js';
@@ -256,15 +256,16 @@ export function chooseAiCatapultTarget(state, side) {
 // mutate-in-place convention as adventure.js/battle.js.
 export function chooseAiCastleActions(state, owner) {
   const hero = state.heroes[owner];
-  for (const creature of CREATURES) {
-    if (canAffordBuild(hero, creature.id)) {
-      buildDwelling(state, owner, creature.id);
+  const roster = castleRosterFor(hero);
+  for (const creatureTypeId of roster) {
+    if (canAffordBuild(hero, creatureTypeId)) {
+      buildDwelling(state, owner, creatureTypeId);
       break;
     }
   }
-  for (const creature of CREATURES) {
-    const count = maxRecruitable(hero, creature.id);
-    if (count > 0) recruitCreatures(state, owner, creature.id, count);
+  for (const creatureTypeId of roster) {
+    const count = maxRecruitable(hero, creatureTypeId);
+    if (count > 0) recruitCreatures(state, owner, creatureTypeId, count);
   }
   for (const spell of SPELLS) {
     if (canAffordLearnSpell(hero, spell.id)) {
