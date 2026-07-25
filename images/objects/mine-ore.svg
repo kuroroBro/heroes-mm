@@ -1,4 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img">
-  <rect width="64" height="64" rx="10" fill="#2b1608"/>
-  <path fill="#8d8d95" d="M14 46 L24 22 L34 40 L44 18 L54 46 Z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="oreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#b0bec5"/>
+      <stop offset="50%" stop-color="#78909c"/>
+      <stop offset="100%" stop-color="#37474f"/>
+    </linearGradient>
+    <filter id="oreGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#455a64" flood-opacity="0.7"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#oreGlow)">
+    <!-- Quarry Mountain Pit -->
+    <polygon points="10,112 36,36 92,36 118,112" fill="url(#oreGrad)"/>
+    <polygon points="36,36 64,14 92,36" fill="#cfd8dc"/>
+
+    <!-- Cut Stone Steps / Terraces -->
+    <path d="M 24 96 H 104 M 30 80 H 98 M 36 64 H 92 M 42 48 H 86" stroke="#263238" stroke-width="3" fill="none"/>
+
+    <!-- Mine Entrance Tunnel -->
+    <ellipse cx="64" cy="94" rx="22" ry="18" fill="#1c242b"/>
+    <path d="M 42 94 A 22 18 0 0 1 86 94 L 86 112 L 42 112 Z" fill="#1c242b"/>
+
+    <!-- Iron Pickaxe -->
+    <g transform="rotate(-30 64 74)">
+      <rect x="61" y="44" width="6" height="48" rx="2" fill="#8d6e63" stroke="#3e2723" stroke-width="1.5"/>
+      <path d="M 44 46 C 54 40 74 40 84 46 L 78 52 C 70 48 58 48 50 52 Z" fill="#eceff1" stroke="#37474f" stroke-width="2"/>
+    </g>
+
+    <!-- Ore Boulder Pile -->
+    <polygon points="26,112 36,98 48,112" fill="#90a4ae" stroke="#37474f" stroke-width="2"/>
+    <polygon points="80,112 92,94 104,112" fill="#78909c" stroke="#37474f" stroke-width="2"/>
+
+    <!-- Mountain Ore Badge -->
+    <circle cx="96" cy="36" r="22" fill="#78909c" stroke="#263238" stroke-width="3"/>
+    <polygon points="82,48 96,20 110,48" fill="#eceff1" stroke="#37474f" stroke-width="2"/>
+    <polygon points="88,48 96,32 104,48" fill="#b0bec5"/>
+  </g>
 </svg>

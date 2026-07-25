@@ -1,4 +1,36 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img">
-  <rect width="64" height="64" rx="10" fill="#2b1608"/>
-  <circle cx="32" cy="32" r="18" fill="#f5e642" stroke="#b8a900" stroke-width="3"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="sulfurGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffff00"/>
+      <stop offset="50%" stop-color="#ff9100"/>
+      <stop offset="100%" stop-color="#ff3d00"/>
+    </linearGradient>
+    <filter id="sulfurGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#ffab00" flood-opacity="0.8"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#sulfurGlow)">
+    <!-- Volcanic Crater Mound -->
+    <polygon points="10,112 30,50 98,50 118,112" fill="#3e2723" stroke="#1b0000" stroke-width="3"/>
+    <!-- Lava/Sulfur Crater Opening -->
+    <ellipse cx="64" cy="54" rx="34" ry="14" fill="#212121" stroke="#ff6d00" stroke-width="2"/>
+    <ellipse cx="64" cy="56" rx="28" ry="10" fill="url(#sulfurGrad)"/>
+
+    <!-- Sulfur Crystal Mounds -->
+    <polygon points="24,112 36,82 48,112" fill="#ffd600" stroke="#f57f17" stroke-width="2"/>
+    <polygon points="80,112 92,78 104,112" fill="#ffab00" stroke="#f57f17" stroke-width="2"/>
+    <polygon points="44,112 56,88 68,112" fill="#ffff00" stroke="#f57f17" stroke-width="2"/>
+
+    <!-- Sulfur Smoke / Fire Vents -->
+    <path d="M 52 50 C 44 32 58 20 54 10" stroke="#ffd600" stroke-width="4" fill="none" opacity="0.8"/>
+    <path d="M 64 48 C 70 30 60 18 66 6" stroke="#ff6d00" stroke-width="4" fill="none" opacity="0.8"/>
+    <path d="M 76 50 C 84 34 72 22 78 12" stroke="#ff3d00" stroke-width="3" fill="none" opacity="0.8"/>
+
+    <!-- Fiery Sulfur Badge -->
+    <circle cx="96" cy="36" r="22" fill="#ff6d00" stroke="#ffd600" stroke-width="3"/>
+    <!-- Flame Icon -->
+    <path d="M 96 18 C 96 18 106 28 106 38 A 10 10 0 0 1 86 38 C 86 28 96 18 96 18 Z" fill="url(#sulfurGrad)"/>
+    <path d="M 96 26 C 96 26 101 32 101 38 A 5 5 0 0 1 91 38 C 91 32 96 26 96 26 Z" fill="#ffff8d"/>
+  </g>
 </svg>

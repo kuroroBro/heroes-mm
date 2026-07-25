@@ -207,20 +207,28 @@ conclusion.
 
 ## Non-goals (v1)
 
-- **No magic/spells system** — no spellbook, mana, or spell effects of any
-  kind. Hero stats are limited to Attack, Defense, Level/XP, and Movement
-  Points. This is the single biggest scope cut versus the original game.
-- **No town-building/creature recruiting economy** — resources (gold,
-  wood, ore, crystal, mercury, sulfur, gems) are collected from mines and
+- **No magic/spells system** *(superseded — see
+  `specs/003-siege-and-spells`, which adds a Castle-learned spellbook and
+  a mana pool; left here as the historical v1 scope record)* — no
+  spellbook, mana, or spell effects of any kind. Hero stats are limited to
+  Attack, Defense, Level/XP, and Movement Points. This is the single
+  biggest scope cut versus the original game.
+- **No town-building/creature recruiting economy** *(superseded — see
+  `specs/002-castle-creatures`, which adds a Castle build/recruit screen;
+  left here as the historical v1 scope record)* — resources (gold, wood,
+  ore, crystal, mercury, sulfur, gems) are collected from mines and
   contribute to Kingdom Score, but there is no town screen and nothing to
   spend them on yet in v1. Creature dwellings grant creatures directly and
   passively (US-2) rather than via a paid recruit screen.
 - **No procedurally generated maps** — v1 ships one fixed 15×11 hex map
   layout. Map variety/randomization is a future round.
-- **No battlefield obstacles/terrain** and **no fog of war on the
-  adventure map** — every adventure hex is visible and passable (aside
-  from being occupied), and the battlefield is an open field. Both are
-  explicit simplifications to keep pathfinding and AI tractable for v1.
+- **No battlefield obstacles/terrain** *(partially superseded — see
+  `specs/004-siege-battlefield`, which adds wall obstacles, but only to
+  siege battles; every other battle type is still exactly this Non-goal,
+  unchanged)* and **no fog of war on the adventure map** — every
+  adventure hex is visible and passable (aside from being occupied), and
+  the battlefield is an open field. Both are explicit simplifications to
+  keep pathfinding and AI tractable for v1.
 - **No creature special abilities** (retaliation limits beyond the
   standard once-per-round rule, regeneration, flying-specific movement,
   spell immunity, etc.) — every creature is plain melee or plain ranged

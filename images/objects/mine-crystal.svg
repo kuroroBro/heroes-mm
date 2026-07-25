@@ -1,4 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img">
-  <rect width="64" height="64" rx="10" fill="#2b1608"/>
-  <polygon fill="#7ee0e8" stroke="#2e9aa3" stroke-width="2" points="32,10 44,26 38,54 26,54 20,26"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="crystalGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e0f7fa"/>
+      <stop offset="50%" stop-color="#26c6da"/>
+      <stop offset="100%" stop-color="#00838f"/>
+    </linearGradient>
+    <filter id="crystalGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#00bcd4" flood-opacity="0.8"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#crystalGlow)">
+    <!-- Dark Cavern Rock -->
+    <polygon points="12,112 36,36 92,36 116,112" fill="#263238"/>
+    <ellipse cx="64" cy="80" rx="34" ry="28" fill="#001a24"/>
+
+    <!-- Glowing Crystal Spikes -->
+    <!-- Center Big Crystal -->
+    <polygon points="64,36 74,68 64,106 54,68" fill="url(#crystalGrad)" stroke="#00bcd4" stroke-width="2"/>
+    <polygon points="64,36 74,68 64,106" fill="#80deea"/>
+
+    <!-- Left Crystal -->
+    <polygon points="40,54 50,78 42,108 34,78" fill="url(#crystalGrad)" stroke="#00bcd4" stroke-width="2"/>
+    <polygon points="40,54 50,78 42,108" fill="#b2ebf2"/>
+
+    <!-- Right Crystal -->
+    <polygon points="88,54 96,78 86,108 78,78" fill="url(#crystalGrad)" stroke="#00bcd4" stroke-width="2"/>
+    <polygon points="88,54 96,78 86,108" fill="#80deea"/>
+
+    <!-- Small Foreground Crystals -->
+    <polygon points="28,84 36,96 30,112 24,96" fill="#4dd0e1"/>
+    <polygon points="100,84 104,96 98,112 92,96" fill="#4dd0e1"/>
+
+    <!-- Glowing Crystal Badge -->
+    <circle cx="96" cy="36" r="22" fill="#00838f" stroke="#00e5ff" stroke-width="3"/>
+    <polygon points="96,18 106,34 96,52 86,34" fill="url(#crystalGrad)" stroke="#e0f7fa" stroke-width="2"/>
+    <polygon points="96,18 106,34 96,52" fill="#e0f7fa"/>
+  </g>
 </svg>

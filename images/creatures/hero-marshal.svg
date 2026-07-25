@@ -1,5 +1,50 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="M">
-  <rect width="64" height="64" rx="10" fill="#2b1608"/>
-  <circle cx="32" cy="32" r="20" fill="#ffd23f" stroke="#c99a10" stroke-width="3"/>
-  <text x="32" y="40" font-family="sans-serif" font-size="20" font-weight="800" fill="#1a0d05" text-anchor="middle">M</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="armorSilver" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="50%" stop-color="#b0bec5"/>
+      <stop offset="100%" stop-color="#546e7a"/>
+    </linearGradient>
+    <linearGradient id="goldTrim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffecb3"/>
+      <stop offset="50%" stop-color="#ffd54f"/>
+      <stop offset="100%" stop-color="#ff8f00"/>
+    </linearGradient>
+    <filter id="heroBlueGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#29b6f6" flood-opacity="0.9"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#heroBlueGlow)">
+    <!-- Hero Base Aura Ring -->
+    <ellipse cx="64" cy="110" rx="48" ry="14" fill="#0288d1" opacity="0.5"/>
+    <ellipse cx="64" cy="110" rx="38" ry="10" fill="none" stroke="#81d4fa" stroke-width="2"/>
+
+    <!-- Royal Blue Cape -->
+    <path d="M 32 44 C 20 64 16 96 22 110 C 44 114 84 114 106 110 C 112 96 108 64 96 44 Z" fill="#1565c0" stroke="#0d47a1" stroke-width="3"/>
+
+    <!-- Silver Armor Body / Cuirass -->
+    <path d="M 40 48 L 88 48 L 82 92 L 64 102 L 46 92 Z" fill="url(#armorSilver)" stroke="#263238" stroke-width="3"/>
+    <!-- Gold Trimmed Breastplate -->
+    <path d="M 64 48 L 64 94 M 46 64 L 82 64" stroke="url(#goldTrim)" stroke-width="4"/>
+
+    <!-- Pauldrons (Shoulder Guards) -->
+    <ellipse cx="34" cy="48" rx="14" ry="10" fill="url(#goldTrim)" stroke="#5d4037" stroke-width="2"/>
+    <ellipse cx="94" cy="48" rx="14" ry="10" fill="url(#goldTrim)" stroke="#5d4037" stroke-width="2"/>
+
+    <!-- Knight Helmet with Visor -->
+    <path d="M 44 24 C 44 10 84 10 84 24 L 84 48 L 44 48 Z" fill="url(#armorSilver)" stroke="#263238" stroke-width="3"/>
+    <!-- Helmet Visor Slit -->
+    <rect x="52" y="32" width="24" height="6" rx="2" fill="#102027"/>
+    <!-- Plume / Crest -->
+    <path d="M 64 10 C 64 2 80 -4 92 4 C 84 12 76 16 64 14 Z" fill="#e53935"/>
+
+    <!-- Marshal Shield -->
+    <path d="M 80 60 L 110 60 L 102 96 L 80 78 Z" fill="url(#goldTrim)" stroke="#5d4037" stroke-width="2"/>
+    <polygon points="95,66 100,74 95,82 90,74" fill="#1565c0"/>
+
+    <!-- Commander Banner Flag -->
+    <line x1="24" y1="112" x2="24" y2="12" stroke="#455a64" stroke-width="4"/>
+    <path d="M 24 16 L -2 24 L 24 32 Z" fill="#0288d1"/>
+  </g>
 </svg>

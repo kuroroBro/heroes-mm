@@ -30,10 +30,10 @@ export const MAP_OBJECTS = [
   { hex: at(4, 9), object: { type: 'mine', resource: 'sulfur', ownerId: null, spriteId: 'mine-sulfur' } },
   { hex: at(10, 1), object: { type: 'mine', resource: 'gems', ownerId: null, spriteId: 'mine-gems' } },
 
-  { hex: at(5, 5), object: { type: 'dwelling', creatureTypeId: 'archer', ownerId: null, spriteId: 'dwelling', guard: { creatureTypeId: 'archer', count: 6 }, garrison: 0 } },
-  { hex: at(9, 5), object: { type: 'dwelling', creatureTypeId: 'orc', ownerId: null, spriteId: 'dwelling', guard: { creatureTypeId: 'orc', count: 5 }, garrison: 0 } },
-  { hex: at(3, 6), object: { type: 'dwelling', creatureTypeId: 'ogre', ownerId: null, spriteId: 'dwelling', guard: { creatureTypeId: 'ogre', count: 4 }, garrison: 0 } },
-  { hex: at(11, 4), object: { type: 'dwelling', creatureTypeId: 'troll', ownerId: null, spriteId: 'dwelling', guard: { creatureTypeId: 'troll', count: 4 }, garrison: 0 } },
+  { hex: at(5, 5), object: { type: 'dwelling', creatureTypeId: 'archer', ownerId: null, spriteId: 'dwelling-archer', guard: { creatureTypeId: 'archer', count: 6 } } },
+  { hex: at(9, 5), object: { type: 'dwelling', creatureTypeId: 'orc', ownerId: null, spriteId: 'dwelling-orc', guard: { creatureTypeId: 'orc', count: 5 } } },
+  { hex: at(3, 6), object: { type: 'dwelling', creatureTypeId: 'ogre', ownerId: null, spriteId: 'dwelling-ogre', guard: { creatureTypeId: 'ogre', count: 4 } } },
+  { hex: at(11, 4), object: { type: 'dwelling', creatureTypeId: 'troll', ownerId: null, spriteId: 'dwelling-troll', guard: { creatureTypeId: 'troll', count: 4 } } },
 
   { hex: at(7, 3), object: { type: 'monster', spriteId: 'monster', guard: { creatureTypeId: 'wolf', count: 6 } } },
   { hex: at(7, 7), object: { type: 'monster', spriteId: 'monster', guard: { creatureTypeId: 'skeleton', count: 8 } } },

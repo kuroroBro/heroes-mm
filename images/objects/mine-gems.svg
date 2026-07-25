@@ -1,4 +1,37 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img">
-  <rect width="64" height="64" rx="10" fill="#2b1608"/>
-  <polygon fill="#ff6fae" stroke="#c02e73" stroke-width="2" points="32,12 48,24 42,52 22,52 16,24"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="gemGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ea80fc"/>
+      <stop offset="50%" stop-color="#aa00ff"/>
+      <stop offset="100%" stop-color="#4a148c"/>
+    </linearGradient>
+    <filter id="gemGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#e040fb" flood-opacity="0.8"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#gemGlow)">
+    <!-- Cavern Mountain -->
+    <polygon points="12,112 36,36 92,36 116,112" fill="#311b92" stroke="#12005e" stroke-width="3"/>
+    <ellipse cx="64" cy="80" rx="34" ry="26" fill="#0d0035"/>
+
+    <!-- Cut Gemstones Cluster inside Cave -->
+    <!-- Red Ruby Gem -->
+    <polygon points="46,74 54,64 64,70 56,84 42,80" fill="#ff1744" stroke="#ffffff" stroke-width="1.5"/>
+    <polygon points="46,74 54,64 56,84" fill="#ff80ab"/>
+
+    <!-- Green Emerald Gem -->
+    <polygon points="68,66 80,66 86,78 74,90 64,80" fill="#00e676" stroke="#ffffff" stroke-width="1.5"/>
+    <polygon points="68,66 80,66 74,90" fill="#b9f6ca"/>
+
+    <!-- Purple Amethyst Gem -->
+    <polygon points="56,84 72,84 64,104" fill="url(#gemGrad)" stroke="#ffffff" stroke-width="1.5"/>
+    <polygon points="56,84 64,104 60,94" fill="#ea80fc"/>
+
+    <!-- Sparkling Diamond Badge -->
+    <circle cx="96" cy="36" r="22" fill="#4a148c" stroke="#e040fb" stroke-width="3"/>
+    <polygon points="96,18 110,28 96,52 82,28" fill="#e040fb" stroke="#ffffff" stroke-width="2"/>
+    <polygon points="96,18 110,28 96,28" fill="#ffffff"/>
+    <polygon points="96,28 110,28 96,52" fill="#ea80fc"/>
+  </g>
 </svg>

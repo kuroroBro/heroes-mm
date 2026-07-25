@@ -1,7 +1,50 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Gold Mine">
-  <rect width="64" height="64" rx="10" fill="#2b1608"/>
-  <path fill="#6b4020" d="M14 44 L26 24 L38 44 Z"/>
-  <rect x="10" y="44" width="44" height="8" rx="2" fill="#4a2a12"/>
-  <circle cx="42" cy="30" r="12" fill="#ffd23f" stroke="#c99a10" stroke-width="2"/>
-  <text x="42" y="35" font-family="sans-serif" font-size="14" font-weight="700" fill="#7a5300" text-anchor="middle">G</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff176"/>
+      <stop offset="50%" stop-color="#ffd54f"/>
+      <stop offset="100%" stop-color="#ff8f00"/>
+    </linearGradient>
+    <linearGradient id="mineCave" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3e2723"/>
+      <stop offset="100%" stop-color="#1b0000"/>
+    </linearGradient>
+    <filter id="goldGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#ffb300" flood-opacity="0.7"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#goldGlow)">
+    <!-- Mountain Background -->
+    <polygon points="12,112 40,32 80,48 116,112" fill="#5d4037"/>
+    <polygon points="40,32 64,12 80,48" fill="#8d6e63"/>
+    <!-- Mountain snow/rocks -->
+    <polygon points="40,32 50,22 64,12 72,30 60,36" fill="#d7ccc8"/>
+
+    <!-- Mine Shaft Opening -->
+    <path d="M 38 112 L 38 68 C 38 52 90 52 90 68 L 90 112 Z" fill="url(#mineCave)"/>
+
+    <!-- Timber Frame Support -->
+    <path d="M 32 112 L 32 62 L 96 62 L 96 112 L 86 112 L 86 70 L 42 70 L 42 112 Z" fill="#6d4c41" stroke="#3e2723" stroke-width="3"/>
+    <rect x="30" y="56" width="68" height="10" rx="2" fill="#8d6e63" stroke="#3e2723" stroke-width="2"/>
+
+    <!-- Rail Track -->
+    <path d="M 52 112 L 56 86 M 76 112 L 72 86" stroke="#b0bec5" stroke-width="4"/>
+    <line x1="48" y1="104" x2="80" y2="104" stroke="#4e342e" stroke-width="4"/>
+    <line x1="52" y1="92" x2="76" y2="92" stroke="#4e342e" stroke-width="4"/>
+
+    <!-- Mine Cart full of Gold -->
+    <rect x="50" y="80" width="28" height="18" rx="3" fill="#424242" stroke="#212121" stroke-width="2"/>
+    <circle cx="54" cy="100" r="5" fill="#757575"/>
+    <circle cx="74" cy="100" r="5" fill="#757575"/>
+    <!-- Gold Nuggets in Cart -->
+    <ellipse cx="64" cy="78" rx="12" ry="6" fill="url(#goldGrad)"/>
+    <circle cx="58" cy="76" r="4" fill="#ffe082"/>
+    <circle cx="68" cy="75" r="5" fill="#ffca28"/>
+
+    <!-- Prominent Gold Coin Badge -->
+    <circle cx="96" cy="36" r="22" fill="url(#goldGrad)" stroke="#ff6f00" stroke-width="3"/>
+    <circle cx="96" cy="36" r="17" fill="none" stroke="#fff8e1" stroke-width="2"/>
+    <text x="96" y="44" font-family="'Cinzel', 'Times New Roman', serif" font-size="24" font-weight="bold" fill="#5d4037" text-anchor="middle">$</text>
+  </g>
 </svg>

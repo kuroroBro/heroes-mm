@@ -78,6 +78,13 @@ not an array of individual units).
 
 ### Decision #3: No town-building — dwellings grant creatures passively
 
+> **Superseded by `specs/002-castle-creatures`** (2026-07-22): a captured
+> dwelling now unlocks its creature type at the hero's Castle instead of
+> instantly merging it into the army, and creatures can also be unlocked
+> by building in the Castle without ever finding/fighting the map hex.
+> Left below as the historical v1 record of why this was cut in the first
+> place — see `specs/002-castle-creatures/plan.md` for the current rules.
+
 Rather than build a town/recruit-queue screen (a large subsystem on its
 own — see spec.md Non-goals), a captured **dwelling** hex just accrues
 `growthPerDay` creatures of its tied type each day, up to a fixed max

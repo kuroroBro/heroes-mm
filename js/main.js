@@ -1,23 +1,32 @@
 import { key, equals, axialToPixel, rectHexes, distance as hexDistance } from './hexgrid.js';
 import { RESOURCES } from './resources.js';
-import { getCreature } from './creatures.js';
+import { CREATURES, getCreature } from './creatures.js';
 import { HERO_TYPES, getHeroType } from './heroTypes.js';
 import { spritePath } from './sprites.js';
 import {
   createAdventure, moveHero, endDay, kingdomScore, getPendingBattleArmies,
-  resolveBattleOutcome, planMoveTowards,
+  resolveBattleOutcome, planMoveTowards, isSiegeBattle,
 } from './adventure.js';
 import {
   createBattle, getStack, moveStack, attackStack, waitStack, defendStack,
-  reachableHexes, survivingStacks,
+  reachableHexes, survivingStacks, castSpell, canCastSpell, attackWall, isObstacleHex,
+  SIEGE_GATE_ROW,
 } from './battle.js';
-import { aiSelectTarget, aiChooseBattleMove, aiChooseBattleAttack } from './ai.js';
+import {
+  aiSelectTarget, aiChooseBattleMove, aiChooseBattleAttack, chooseAiCastleActions, chooseAiSpell,
+  chooseAiCatapultTarget,
+} from './ai.js';
+import {
+  isUnlocked, canAffordBuild, buildDwelling, maxRecruitable, recruitCreatures, BUILD_COST, RECRUIT_COST,
+  knowsSpell, canAffordLearnSpell, learnSpell,
+} from './castle.js';
+import { SPELLS } from './spells.js';
 import { loadSettings, saveSettings } from './storage.js';
 
 const $ = (id) => document.getElementById(id);
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-const SCREENS = ['screen-home', 'screen-setup', 'screen-adventure', 'screen-battle', 'screen-gameover'];
+const SCREENS = ['screen-home', 'screen-setup', 'screen-adventure', 'screen-castle', 'screen-battle', 'screen-gameover'];
 function showScreen(id) {
   for (const s of SCREENS) $(s).hidden = s !== id;
 }
@@ -29,6 +38,15 @@ let adventureState = null;
 let battleState = null;
 let battleContext = null; // { attackerOwner, defenderOwner } captured at battle start
 let aiDayInProgress = false;
+let pendingSpellCast = null; // spellId awaiting a battlefield target click, or null
+let pendingCatapultTarget = false; // true while picking a wall hex to fire the catapult at
+// Hex-key -> pixel-center map from the battle map's most recent render,
+// and its hex size — set at the end of renderBattleMap, read afterward by
+// showAttackEffects/showSpellEffect (called just after a render, never
+// during one) so they can place floating numbers/flight icons without
+// recomputing the whole layout themselves.
+let battleMapPositions = null;
+let battleMapHexSize = 0;
 
 // ==================================================================
 // Hex rendering helpers (shared shape for adventure + battle grids)
@@ -60,6 +78,51 @@ function svgEl(tag, attrs) {
   const el = document.createElementNS(SVG_NS, tag);
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
   return el;
+}
+
+// Hex ground textures (from this workspace's pinoy-board project's
+// battleground hex skins). One <pattern> per texture, sized to exactly
+// fill whatever bounding box it's applied to (patternUnits +
+// patternContentUnits both objectBoundingBox, width/height 1) — the
+// fractional sizing means the same pattern definition works for both the
+// adventure map's and battlefield's hexes despite their different hex
+// sizes. svg.innerHTML = '' clears these each render, so every render
+// call re-adds them.
+//
+// IDs are namespaced with the target <svg>'s own element id (e.g.
+// "adv-map"/"battle-map"). Both screens' SVGs stay in the DOM at once —
+// screen switching only toggles `hidden`, it never removes markup — so
+// two identically-id'd <pattern> elements would collide: url(#terrain-
+// grass) resolves to the *first* matching id in the whole document,
+// regardless of which SVG subtree references it, which silently broke
+// the second-rendered grid's fill.
+const TERRAIN_PATTERNS = { grass: 'images/terrain/grass-hex.png', stone: 'images/terrain/stone-hex.png' };
+function addTerrainDefs(svg) {
+  const defs = svgEl('defs', {});
+  for (const [id, href] of Object.entries(TERRAIN_PATTERNS)) {
+    const pattern = svgEl('pattern', {
+      id: `terrain-${id}-${svg.id}`, patternUnits: 'objectBoundingBox', patternContentUnits: 'objectBoundingBox',
+      width: 1, height: 1,
+    });
+    pattern.appendChild(svgEl('image', { href, x: 0, y: 0, width: 1, height: 1, preserveAspectRatio: 'xMidYMid slice' }));
+    defs.appendChild(pattern);
+  }
+  svg.appendChild(defs);
+  return (id) => `url(#terrain-${id}-${svg.id})`;
+}
+
+// Shared radial gradient behind the .battle-spotlight circle (a plain SVG
+// <circle> can't itself have a soft-edged radial fill without one). Always
+// namespaced/re-added alongside the terrain defs above since svg.innerHTML
+// = '' clears it every render too.
+function addSpotlightGradientDef(svg) {
+  const defs = svgEl('defs', {});
+  const gradient = svgEl('radialGradient', { id: 'battle-spotlight-gradient' });
+  gradient.appendChild(svgEl('stop', { offset: '0%', 'stop-color': '#ffd23f', 'stop-opacity': 0.38 }));
+  gradient.appendChild(svgEl('stop', { offset: '45%', 'stop-color': '#ffd23f', 'stop-opacity': 0.16 }));
+  gradient.appendChild(svgEl('stop', { offset: '100%', 'stop-color': '#ffd23f', 'stop-opacity': 0 }));
+  defs.appendChild(gradient);
+  svg.appendChild(defs);
 }
 
 // ==================================================================
@@ -153,10 +216,227 @@ function renderArmyList(list, army) {
   }
 }
 
+let activeMapFilter = 'all';
+
+const RESOURCE_CONFIG = {
+  gold: { symbol: '$', label: 'Gold', color: '#ffd54f', text: '#5d4037' },
+  wood: { symbol: '🪵', label: 'Wood', color: '#8d6e63', text: '#ffffff' },
+  ore: { symbol: '⛰️', label: 'Ore', color: '#78909c', text: '#ffffff' },
+  crystal: { symbol: '💎', label: 'Crystal', color: '#26c6da', text: '#004d40' },
+  mercury: { symbol: '🧪', label: 'Mercury', color: '#ff5252', text: '#ffffff' },
+  sulfur: { symbol: '💥', label: 'Sulfur', color: '#ffab00', text: '#3e2723' },
+  gems: { symbol: '💍', label: 'Gems', color: '#ea80fc', text: '#4a148c' },
+};
+
+function initMapLegend() {
+  const legendBar = $('map-legend-bar');
+  if (!legendBar) return;
+  const buttons = legendBar.querySelectorAll('.legend-btn');
+  buttons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      buttons.forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeMapFilter = btn.dataset.filter || 'all';
+      if (adventureState) renderAdventureMap();
+    });
+  });
+}
+setTimeout(initMapLegend, 0);
+
+function getHexInspectionDetails(hex) {
+  if (!adventureState) return null;
+  const state = adventureState;
+
+  for (const owner of ['player', 'ai']) {
+    const hero = state.heroes[owner];
+    if (equals(hero.position, hex)) {
+      const heroType = getHeroType(hero.heroTypeId);
+      const isPlayer = owner === 'player';
+      const armyDesc = hero.army.map((s) => `${s.count} ${getCreature(s.creatureTypeId).name}`).join(', ') || 'No army';
+      return {
+        category: 'hero',
+        title: `${isPlayer ? '🛡️ Player Hero' : '⚔️ Enemy Hero'}: ${heroType.name}`,
+        subtitle: `Level ${hero.level} ${heroType.name} (${isPlayer ? 'Your Hero' : 'AI Opponent'})`,
+        details: [
+          `Attack: ${hero.attack} / Defense: ${hero.defense}`,
+          `Army: ${armyDesc}`,
+          isPlayer ? `Movement left: ${hero.movementLeft}/${hero.movementMax}` : 'Click to attack if reachable'
+        ],
+        badgeColor: isPlayer ? '#4fc3f7' : '#ff6b4a',
+      };
+    }
+  }
+
+  const occupant = state.hexes.get(key(hex));
+  if (!occupant) {
+    const dist = hexDistance(state.heroes.player.position, hex);
+    return {
+      category: 'empty',
+      title: '🟩 Grassland Hex',
+      subtitle: `Coordinates (${hex.q}, ${hex.r})`,
+      details: [
+        `Distance from Hero: ${dist} hex${dist === 1 ? '' : 'es'}`,
+        dist <= state.heroes.player.movementLeft ? 'Reachable today' : 'Out of range today'
+      ],
+      badgeColor: '#5a4327',
+    };
+  }
+
+  if (occupant.type === 'keep') {
+    const ownerName = occupant.ownerId ? (occupant.ownerId === 'player' ? 'Your Keep' : 'AI Enemy Keep') : 'Neutral Keep';
+    return {
+      category: 'keep',
+      title: `🏰 Castle Fortress (${ownerName})`,
+      subtitle: occupant.ownerId === 'player' ? 'Your Home Base & Castle' : 'Enemy Fortress (Siege Target)',
+      details: [
+        `Owner: ${occupant.ownerId ? occupant.ownerId.toUpperCase() : 'Unclaimed'}`,
+        occupant.ownerId === 'player' ? 'Click 🏰 Castle button to recruit creatures & learn spells.' : 'Move hero onto enemy keep to initiate a Siege!'
+      ],
+      badgeColor: occupant.ownerId === 'player' ? '#4fc3f7' : (occupant.ownerId === 'ai' ? '#ff6b4a' : '#ffd23f'),
+    };
+  }
+
+  if (occupant.type === 'mine') {
+    const resConf = RESOURCE_CONFIG[occupant.resource] || { symbol: '⛏️', label: occupant.resource, color: '#ffd54f' };
+    const ownerName = occupant.ownerId ? (occupant.ownerId === 'player' ? 'You' : 'AI Enemy') : 'Unclaimed';
+    const guardDesc = occupant.guard ? `Guarded by ${occupant.guard.count} ${getCreature(occupant.guard.creatureTypeId).name}s` : 'Unguarded';
+    return {
+      category: 'mine',
+      title: `${resConf.symbol} ${resConf.label} Mine`,
+      subtitle: `Produces +1 ${resConf.label} per day when captured`,
+      details: [
+        `Owner: ${ownerName}`,
+        `Guard Status: ${guardDesc}`,
+        occupant.ownerId === 'player' ? 'Generating daily yield for your kingdom' : 'Capture to claim daily resource yield'
+      ],
+      badgeColor: resConf.color,
+    };
+  }
+
+  if (occupant.type === 'monster') {
+    const guard = occupant.guard;
+    const creature = guard ? getCreature(guard.creatureTypeId) : null;
+    const name = creature ? creature.name : 'Roaming Monster';
+    const count = guard ? guard.count : 0;
+    return {
+      category: 'monster',
+      title: `💀 Hostile Monster: ${count} ${name}s`,
+      subtitle: `Tier ${creature ? creature.tier : 1} Wild Monster Stack`,
+      details: [
+        `Count: ${count} ${name}s`,
+        `Stats: ATK ${creature ? creature.attack : 1} / DEF ${creature ? creature.defense : 1} / HP ${creature ? creature.hp : 1}`,
+        'Defeat in battle to claim XP & clear path'
+      ],
+      badgeColor: '#ff5252',
+    };
+  }
+
+  if (occupant.type === 'dwelling') {
+    const creature = occupant.creatureTypeId ? getCreature(occupant.creatureTypeId) : null;
+    const name = creature ? creature.name : 'Creature';
+    const ownerName = occupant.ownerId ? (occupant.ownerId === 'player' ? 'Captured by You' : 'Captured by AI') : 'Unclaimed';
+    const guardDesc = occupant.guard ? `Guarded by ${occupant.guard.count} ${getCreature(occupant.guard.creatureTypeId).name}s` : 'Unguarded';
+    return {
+      category: 'dwelling',
+      title: `🛖 ${name} Dwelling`,
+      subtitle: `Unlocks ${name} recruitment at Castle`,
+      details: [
+        `Status: ${ownerName}`,
+        `Guard Status: ${guardDesc}`,
+        'Capture to unlock this creature tier in your Castle'
+      ],
+      badgeColor: '#81c784',
+    };
+  }
+
+  if (occupant.type === 'treasure') {
+    return {
+      category: 'treasure',
+      title: `💎 Treasure Chest (${occupant.amount} ${occupant.resource})`,
+      subtitle: 'Free resource pick-up on hex',
+      details: [
+        `Contains: ${occupant.amount} ${occupant.resource}`,
+        'Walk onto hex to pick up treasure instantly'
+      ],
+      badgeColor: '#ffd54f',
+    };
+  }
+
+  return null;
+}
+
+function updateInspectorUI(hex, mouseEvt = null) {
+  const info = getHexInspectionDetails(hex);
+  if (!info) return;
+
+  const titleEl = $('inspector-title');
+  const bodyEl = $('inspector-body');
+  if (titleEl) {
+    titleEl.textContent = info.title;
+    titleEl.style.color = info.badgeColor || 'var(--accent)';
+  }
+  if (bodyEl) {
+    bodyEl.innerHTML = `<div style="margin-bottom:0.3rem"><strong>${info.subtitle}</strong></div>` +
+      info.details.map((d) => `<div style="margin-bottom:0.15rem">• ${d}</div>`).join('');
+  }
+
+  const tooltip = $('adv-map-tooltip');
+  if (tooltip && mouseEvt) {
+    tooltip.hidden = false;
+    const detailsHtml = info.details.map((d) => `<div style="margin-top:2px">• ${d}</div>`).join('');
+    tooltip.innerHTML = `<div style="font-weight:bold; color:${info.badgeColor || '#fff'}">${info.title}</div><div style="font-size:0.8rem; color:#cbb98f">${info.subtitle}</div><div style="font-size:0.78rem; margin-top:4px; border-top:1px solid rgba(255,255,255,0.2); padding-top:4px">${detailsHtml}</div>`;
+    const wrap = $('adv-map-wrap');
+    if (wrap) {
+      const rect = wrap.getBoundingClientRect();
+      const x = mouseEvt.clientX - rect.left + 14;
+      const y = mouseEvt.clientY - rect.top + 14;
+      tooltip.style.left = `${Math.min(x, rect.width - 240)}px`;
+      tooltip.style.top = `${Math.min(y, rect.height - 100)}px`;
+    }
+  }
+}
+
+function hideMapTooltip() {
+  const tooltip = $('adv-map-tooltip');
+  if (tooltip) tooltip.hidden = true;
+}
+
+function drawMapSvgBadge(svg, cx, cy, text, bgFill = '#241a10', textFill = '#f5ead2', borderFill = '#5a4327', fontSize = 9) {
+  const g = svgEl('g', { class: 'map-badge-group', 'pointer-events': 'none' });
+  const padX = 4;
+  const textWidth = Math.max(12, text.length * (fontSize * 0.6));
+  const width = textWidth + padX * 2;
+  const height = fontSize + 4;
+  const rect = svgEl('rect', {
+    x: cx - width / 2,
+    y: cy - height / 2,
+    width,
+    height,
+    rx: 3,
+    fill: bgFill,
+    stroke: borderFill,
+    'stroke-width': 1.2,
+  });
+  const txt = svgEl('text', {
+    x: cx,
+    y: cy + fontSize * 0.35,
+    'font-size': `${fontSize}px`,
+    'font-weight': 'bold',
+    'font-family': 'var(--font-body), sans-serif',
+    fill: textFill,
+    'text-anchor': 'middle',
+  });
+  txt.textContent = text;
+  g.appendChild(rect);
+  g.appendChild(txt);
+  svg.appendChild(g);
+}
+
 function renderAdventureMap() {
   const state = adventureState;
   const svg = $('adv-map');
   svg.innerHTML = '';
+  const terrainFill = addTerrainDefs(svg);
   const allHexes = rectHexes(state.mapWidth, state.mapHeight);
   const { positions, width, height } = layoutHexes(allHexes, ADV_HEX_SIZE);
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
@@ -171,44 +451,142 @@ function renderAdventureMap() {
     const pos = positions.get(key(hex));
     const occupant = state.hexes.get(key(hex));
     const inRange = state.phase === 'playing' && inRangeHexes.has(key(hex));
-    const poly = svgEl('polygon', {
-      points: hexCorners(pos.x, pos.y, ADV_HEX_SIZE - 1),
-      class: 'hex-tile' + (inRange ? ' in-range' : ''),
-    });
+    const points = hexCorners(pos.x, pos.y, ADV_HEX_SIZE - 1);
+
+    // Check legend filter matching
+    let isFilterMatch = false;
+    if (activeMapFilter !== 'all') {
+      if (occupant && occupant.type === activeMapFilter) isFilterMatch = true;
+      if (activeMapFilter === 'hero') {
+        if (equals(state.heroes.player.position, hex) || equals(state.heroes.ai.position, hex)) {
+          isFilterMatch = true;
+        }
+      }
+    }
+
+    const tileClass = 'hex-tile' + (isFilterMatch ? ' filter-matched' : '');
+    const poly = svgEl('polygon', { points, class: tileClass, fill: terrainFill('grass') });
+    
+    // Add inspector hover listeners
+    poly.addEventListener('mouseenter', (e) => updateInspectorUI(hex, e));
+    poly.addEventListener('mousemove', (e) => updateInspectorUI(hex, e));
+    poly.addEventListener('mouseleave', hideMapTooltip);
     poly.addEventListener('click', () => handleAdventureHexClick(hex));
     svg.appendChild(poly);
 
+    if (inRange) {
+      svg.appendChild(svgEl('polygon', { points, class: 'hex-tile-tint in-range' }));
+    }
+
+    if (isFilterMatch) {
+      const highlight = svgEl('polygon', { points, class: 'hex-tile-highlight' });
+      svg.appendChild(highlight);
+    }
+
     if (occupant) {
-      const iconSize = ADV_HEX_SIZE * 1.1;
+      // 1. Pedestals / Aura Glows depending on object category
+      if (occupant.type === 'keep') {
+        const keepAura = svgEl('circle', {
+          cx: pos.x, cy: pos.y + 4, r: ADV_HEX_SIZE * 0.95,
+          class: `keep-pedestal owner-${occupant.ownerId || 'neutral'}`,
+        });
+        svg.appendChild(keepAura);
+      } else if (occupant.type === 'monster') {
+        const monsterAura = svgEl('circle', {
+          cx: pos.x, cy: pos.y + 2, r: ADV_HEX_SIZE * 0.85, class: 'threat-aura-pulse',
+        });
+        svg.appendChild(monsterAura);
+      } else if (occupant.type === 'treasure') {
+        const treasureAura = svgEl('circle', {
+          cx: pos.x, cy: pos.y + 2, r: ADV_HEX_SIZE * 0.75, class: 'treasure-aura-glow',
+        });
+        svg.appendChild(treasureAura);
+      }
+
+      // 2. Object Sprite Graphic
+      let iconSize = ADV_HEX_SIZE * 1.25;
+      if (occupant.type === 'keep') iconSize = ADV_HEX_SIZE * 1.55;
+
       const img = svgEl('image', {
         href: spritePath(occupant.spriteId),
         x: pos.x - iconSize / 2,
-        y: pos.y - iconSize / 2,
+        y: pos.y - iconSize / 2 - (occupant.type === 'keep' ? 4 : 0),
         width: iconSize,
         height: iconSize,
-        class: 'hex-object-icon',
+        class: `hex-object-icon object-type-${occupant.type}`,
       });
+      img.addEventListener('mouseenter', (e) => updateInspectorUI(hex, e));
+      img.addEventListener('mousemove', (e) => updateInspectorUI(hex, e));
+      img.addEventListener('mouseleave', hideMapTooltip);
       img.addEventListener('click', () => handleAdventureHexClick(hex));
       svg.appendChild(img);
+
+      // 3. Ownership Rings & Category Badges
       if (occupant.ownerId) {
         const ring = svgEl('circle', {
-          cx: pos.x, cy: pos.y, r: ADV_HEX_SIZE - 3, class: `owner-ring owner-${occupant.ownerId}`,
+          cx: pos.x, cy: pos.y, r: ADV_HEX_SIZE - 2, class: `owner-ring owner-${occupant.ownerId}`,
         });
         svg.appendChild(ring);
+      }
+
+      // 4. Specific Badge Overlays for instant readability
+      if (occupant.type === 'keep') {
+        drawMapSvgBadge(svg, pos.x, pos.y + ADV_HEX_SIZE - 6, occupant.ownerId ? occupant.ownerId.toUpperCase() : 'CASTLE', occupant.ownerId === 'player' ? '#1565c0' : (occupant.ownerId === 'ai' ? '#c62828' : '#37474f'), '#ffffff', '#ffd54f', 8);
+      } else if (occupant.type === 'mine') {
+        const resConf = RESOURCE_CONFIG[occupant.resource];
+        if (resConf) {
+          drawMapSvgBadge(svg, pos.x + ADV_HEX_SIZE * 0.45, pos.y - ADV_HEX_SIZE * 0.45, resConf.symbol, resConf.color, resConf.text, '#212121', 10);
+        }
+      } else if (occupant.type === 'monster') {
+        const guard = occupant.guard;
+        if (guard) {
+          const creature = getCreature(guard.creatureTypeId);
+          drawMapSvgBadge(svg, pos.x, pos.y + ADV_HEX_SIZE - 6, `${guard.count}x ${creature.name}`, '#b71c1c', '#ffffff', '#ff5252', 8);
+        }
+      } else if (occupant.type === 'dwelling') {
+        const creature = occupant.creatureTypeId ? getCreature(occupant.creatureTypeId) : null;
+        if (creature) {
+          drawMapSvgBadge(svg, pos.x, pos.y + ADV_HEX_SIZE - 6, creature.name, '#2e7d32', '#ffffff', '#81c784', 8);
+        }
+      } else if (occupant.type === 'treasure') {
+        drawMapSvgBadge(svg, pos.x, pos.y + ADV_HEX_SIZE - 6, `+$${occupant.amount}`, '#ff8f00', '#3e2723', '#ffd54f', 8);
       }
     }
   }
 
+  // Render Hero Tokens with Pedestals, Auras, and Hero Crest Badges
   for (const owner of ['player', 'ai']) {
     const hero = state.heroes[owner];
     const pos = positions.get(key(hero.position));
     if (!pos) continue;
     const heroType = getHeroType(hero.heroTypeId);
-    const size = ADV_HEX_SIZE * 1.3;
+    const size = ADV_HEX_SIZE * 1.5;
+
+    // Glowing Hero Pedestal Aura
+    const heroAura = svgEl('circle', {
+      cx: pos.x, cy: pos.y, r: ADV_HEX_SIZE * 1.1,
+      class: `hero-pedestal-aura owner-${owner}`,
+    });
+    svg.appendChild(heroAura);
+
+    // Hero Outer Ring
     svg.appendChild(svgEl('circle', { cx: pos.x, cy: pos.y, r: ADV_HEX_SIZE - 2, class: `owner-ring owner-${owner} hero-ring` }));
-    svg.appendChild(svgEl('image', {
+
+    // Hero Image Token
+    const heroImg = svgEl('image', {
       href: spritePath(heroType.spriteId), x: pos.x - size / 2, y: pos.y - size / 2, width: size, height: size,
-    }));
+      class: `hero-token owner-${owner}`,
+    });
+    heroImg.addEventListener('mouseenter', (e) => updateInspectorUI(hero.position, e));
+    heroImg.addEventListener('mousemove', (e) => updateInspectorUI(hero.position, e));
+    heroImg.addEventListener('mouseleave', hideMapTooltip);
+    heroImg.addEventListener('click', () => handleAdventureHexClick(hero.position));
+    svg.appendChild(heroImg);
+
+    // Hero Level Badge
+    const isPlayer = owner === 'player';
+    const label = `${isPlayer ? 'LV' : 'AI'}${hero.level} ${heroType.name}`;
+    drawMapSvgBadge(svg, pos.x, pos.y - ADV_HEX_SIZE * 0.75, label, isPlayer ? '#0288d1' : '#d32f2f', '#ffffff', isPlayer ? '#81d4fa' : '#ff8a80', 9);
   }
 }
 
@@ -262,8 +640,133 @@ function continueAiDay() {
 function finishAiDay() {
   aiDayInProgress = false;
   endDay(adventureState);
+  chooseAiCastleActions(adventureState, 'ai');
   renderAdventure();
   if (adventureState.phase === 'gameover') showGameOver();
+}
+
+// ==================================================================
+// CASTLE
+// ==================================================================
+function formatCost(cost) {
+  return Object.entries(cost).map(([r, amt]) => `${amt} ${r}`).join(', ');
+}
+
+$('btn-open-castle').addEventListener('click', () => {
+  if (!adventureState || adventureState.phase !== 'playing' || aiDayInProgress) return;
+  renderCastle();
+  showScreen('screen-castle');
+});
+$('btn-castle-back').addEventListener('click', () => {
+  showScreen('screen-adventure');
+  renderAdventure();
+});
+
+function renderCastle() {
+  const hero = adventureState.heroes.player;
+  $('castle-resources').textContent = RESOURCES.map((r) => `${r}: ${hero.resources[r]}`).join(' · ');
+
+  const list = $('castle-rows');
+  list.innerHTML = '';
+  for (const creature of CREATURES) {
+    const unlocked = isUnlocked(hero, creature.id);
+    const li = document.createElement('li');
+    li.className = 'castle-row' + (unlocked ? '' : ' locked');
+
+    const info = document.createElement('div');
+    info.className = 'castle-row-info';
+    if (unlocked) {
+      const pool = hero.castle.pool[creature.id] || 0;
+      info.innerHTML = `<div class="castle-row-name">${creature.name} (tier ${creature.tier})</div>
+        <div class="castle-row-detail">Pool: ${pool} (+${creature.growthPerDay}/day) · recruit cost: ${formatCost(RECRUIT_COST[creature.id])} each</div>`;
+    } else {
+      info.innerHTML = `<div class="castle-row-name">${creature.name} (tier ${creature.tier})</div>
+        <div class="castle-row-detail">Not built — build cost: ${formatCost(BUILD_COST[creature.id])}</div>`;
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'castle-row-actions';
+    if (unlocked) {
+      const max = maxRecruitable(hero, creature.id);
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = '0';
+      input.max = String(max);
+      input.value = String(max);
+      input.disabled = max === 0;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-primary btn-small';
+      btn.textContent = 'Recruit';
+      btn.disabled = max === 0;
+      btn.addEventListener('click', () => {
+        const count = Math.max(0, Math.min(max, Number(input.value) || 0));
+        if (count > 0 && recruitCreatures(adventureState, 'player', creature.id, count)) renderCastle();
+      });
+      actions.append(input, btn);
+    } else {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-secondary btn-small';
+      btn.textContent = 'Build';
+      btn.disabled = !canAffordBuild(hero, creature.id);
+      btn.addEventListener('click', () => {
+        if (buildDwelling(adventureState, 'player', creature.id)) renderCastle();
+      });
+      actions.append(btn);
+    }
+
+    const img = document.createElement('img');
+    img.src = spritePath('dwelling-' + creature.id);
+    img.alt = '';
+    img.width = 40;
+    img.height = 40;
+
+    li.append(img, info, actions);
+    list.appendChild(li);
+  }
+
+  renderCastleSpells(hero);
+}
+
+function renderCastleSpells(hero) {
+  const list = $('castle-spell-rows');
+  list.innerHTML = '';
+  for (const spell of SPELLS) {
+    const known = knowsSpell(hero, spell.id);
+    const li = document.createElement('li');
+    li.className = 'castle-row' + (known ? '' : ' locked');
+
+    const info = document.createElement('div');
+    info.className = 'castle-row-info';
+    const effectSummary = spell.effect === 'damage' ? `${spell.power} dmg, ${spell.target === 'allEnemies' ? 'all enemies' : 'one enemy'}`
+      : spell.effect === 'heal' ? `restore ${spell.power} HP, one ally`
+      : `${spell.amount > 0 ? '+' : ''}${spell.amount} ${spell.stat}, ${spell.target === 'allAllies' ? 'all allies' : 'all enemies'}, ${spell.durationRounds} rounds`;
+    if (known) {
+      info.innerHTML = `<div class="castle-row-name">${spell.name}</div>
+        <div class="castle-row-detail">${effectSummary} · mana cost: ${spell.manaCost}</div>`;
+    } else {
+      info.innerHTML = `<div class="castle-row-name">${spell.name}</div>
+        <div class="castle-row-detail">Not learned — learn cost: ${formatCost(spell.learnCost)}</div>`;
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'castle-row-actions';
+    if (!known) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-secondary btn-small';
+      btn.textContent = 'Learn';
+      btn.disabled = !canAffordLearnSpell(hero, spell.id);
+      btn.addEventListener('click', () => {
+        if (learnSpell(adventureState, 'player', spell.id)) renderCastle();
+      });
+      actions.append(btn);
+    }
+
+    li.append(info, actions);
+    list.appendChild(li);
+  }
 }
 
 // ==================================================================
@@ -276,14 +779,41 @@ function battleSideOwner(side) {
   return side === 'attacker' ? battleContext.attackerOwner : battleContext.defenderOwner;
 }
 
+// Which battle.js `side` ('attacker'/'defender') the human player
+// controls in the current battle, or null if the player has no hero in
+// this fight at all (shouldn't normally happen — the player is always
+// either the attacker or, when the AI reaches them, the defender).
+function playerBattleSide() {
+  if (battleContext?.attackerOwner === 'player') return 'attacker';
+  if (battleContext?.defenderOwner === 'player') return 'defender';
+  return null;
+}
+
+// battle.js's per-side remaining mana, in the shape resolveBattleOutcome
+// expects (null for a side with no hero — synced back onto the
+// adventure-level hero, specs/003-siege-and-spells FR-4).
+function remainingManaFrom(state) {
+  return {
+    attacker: state.heroSides.attacker ? state.heroSides.attacker.mana : null,
+    defender: state.heroSides.defender ? state.heroSides.defender.mana : null,
+  };
+}
+
 function startBattleFromPending() {
   const pending = adventureState.pendingBattle;
   const armies = getPendingBattleArmies(adventureState);
+  const isSiege = isSiegeBattle(adventureState);
   battleContext = {
     attackerOwner: pending.attackerOwner,
     defenderOwner: pending.defenderKind === 'hero' ? pending.defenderOwner : null,
+    isSiege,
   };
-  battleState = createBattle(armies.attackerArmy, armies.defenderArmy, armies.attackerBonus, armies.defenderBonus);
+  battleState = createBattle(
+    armies.attackerArmy, armies.defenderArmy, armies.attackerBonus, armies.defenderBonus,
+    undefined, { isSiege },
+  );
+  pendingSpellCast = null;
+  pendingCatapultTarget = false;
   showScreen('screen-battle');
   stepBattleAuto();
 }
@@ -305,28 +835,59 @@ function stepBattleAuto() {
   if (owner === 'player') return; // wait for the human to click
   setTimeout(() => {
     if (!battleState || battleState.phase !== 'battle') return;
-    playAiBattleTurn(battleState, active.id);
+    const effects = playAiBattleTurn(battleState, active.id);
+    // renderBattle() inside this call synchronously redraws the map with
+    // the new post-action state before it returns, so appending effect
+    // elements right after (not before) is what keeps them from being
+    // wiped out by that same render's innerHTML = '' reset.
     stepBattleAuto();
+    for (const effect of effects) showEffect(effect);
   }, 380);
 }
 
+// Returns every attack/spell result that happened this turn (empty array
+// if the stack only moved/waited) so the caller can play visual feedback
+// for each — see the comment at its call site above for why that has to
+// happen after, not during, this function.
 function playAiBattleTurn(state, stackId) {
+  const effects = [];
+  const stack = getStack(state, stackId);
+  if (stack) {
+    // Spellcasting and the catapult are both free actions gated once-per-
+    // round by battle.js itself (castSpell/attackWall no-op harmlessly if
+    // already used, or if this side has no hero/isn't the attacker — a
+    // neutral guard/militia stack calling these every turn is fine).
+    // Tried before the stack's own move/attack since neither consumes
+    // the turn.
+    const spellDecision = chooseAiSpell(state, stack.side);
+    if (spellDecision) {
+      const result = castSpell(state, stack.side, spellDecision.spellId, spellDecision.targetId);
+      if (result) effects.push({ kind: 'spell', result });
+    }
+    const catapultTarget = chooseAiCatapultTarget(state, stack.side);
+    if (catapultTarget) attackWall(state, stack.side, catapultTarget);
+  }
   const moveDecision = aiChooseBattleMove(state, stackId);
   if (moveDecision) moveStack(state, stackId, moveDecision.targetHex);
   if (state.activeStackId === stackId && state.phase === 'battle') {
     const atk = aiChooseBattleAttack(state, stackId);
-    if (atk) attackStack(state, stackId, atk.targetId);
-    else waitStack(state, stackId);
+    if (atk) {
+      const result = attackStack(state, stackId, atk.targetId);
+      if (result) effects.push({ kind: 'attack', result });
+    } else waitStack(state, stackId);
   }
+  return effects;
 }
 
 function finishBattleIfOver() {
   if (!battleState || battleState.phase !== 'over') return;
   const winnerSide = battleState.winnerSide;
   const survivors = survivingStacks(battleState, winnerSide);
-  resolveBattleOutcome(adventureState, winnerSide, survivors);
+  resolveBattleOutcome(adventureState, winnerSide, survivors, remainingManaFrom(battleState));
   battleState = null;
   battleContext = null;
+  pendingSpellCast = null;
+  pendingCatapultTarget = false;
 
   if (adventureState.phase === 'gameover') {
     showGameOver();
@@ -344,7 +905,10 @@ function autoResolveNeutralBattle() {
     attackerOwner: pending.attackerOwner,
     defenderOwner: null,
   };
-  const bs = createBattle(armies.attackerArmy, armies.defenderArmy, armies.attackerBonus, armies.defenderBonus);
+  const bs = createBattle(
+    armies.attackerArmy, armies.defenderArmy, armies.attackerBonus, armies.defenderBonus,
+    undefined, { isSiege: isSiegeBattle(adventureState) },
+  );
   let guard = 0;
   while (bs.phase === 'battle' && guard < 1000) {
     const active = getStack(bs, bs.activeStackId);
@@ -353,7 +917,7 @@ function autoResolveNeutralBattle() {
     guard++;
   }
   const survivors = survivingStacks(bs, bs.winnerSide || 'attacker');
-  resolveBattleOutcome(adventureState, bs.winnerSide || 'attacker', survivors);
+  resolveBattleOutcome(adventureState, bs.winnerSide || 'attacker', survivors, remainingManaFrom(bs));
 }
 
 function renderBattle() {
@@ -368,6 +932,8 @@ function renderBattle() {
   ownerEl.textContent = ownerLabel;
   ownerEl.className = 'pill ' + (owner === 'player' ? 'turn-player' : owner === 'ai' ? 'turn-ai' : 'turn-neutral');
 
+  $('battle-siege-wall').hidden = !battleContext?.isSiege;
+
   renderTurnOrder(state);
   renderBattleMap(state);
 
@@ -377,6 +943,87 @@ function renderBattle() {
     $('battle-active-label').textContent = `${getCreature(active.creatureTypeId).name} (${active.count})`;
   } else {
     controls.hidden = true;
+  }
+
+  renderBattleSpellPanel(state, active, owner);
+  renderBattleCatapultPanel(state, active, owner);
+}
+
+// Shown only when the player is the attacker in a siege, it's their turn
+// window, and at least one wall hex is still standing — the catapult
+// (specs/004-siege-battlefield US-4) has no defender/militia equivalent.
+function renderBattleCatapultPanel(state, active, owner) {
+  const panel = $('battle-catapult-panel');
+  const side = playerBattleSide();
+  const show = active && owner === 'player' && side === 'attacker' && battleContext?.isSiege && state.walls.size > 0;
+  panel.hidden = !show;
+  if (!show) {
+    pendingCatapultTarget = false;
+    return;
+  }
+  const btn = $('btn-fire-catapult');
+  btn.disabled = state.heroSides.attacker.hasFiredCatapultThisRound;
+  btn.classList.toggle('active', pendingCatapultTarget);
+}
+
+$('btn-fire-catapult').addEventListener('click', () => {
+  pendingSpellCast = null;
+  pendingCatapultTarget = !pendingCatapultTarget;
+  renderBattle();
+});
+
+// Shown whenever it's the player's own turn window (spellcasting is a
+// free action available whenever any of your stacks is active, not just
+// the one currently up — specs/003-siege-and-spells Decision #1) and
+// their hero knows at least one spell.
+function renderBattleSpellPanel(state, active, owner) {
+  const panel = $('battle-spell-panel');
+  const hero = adventureState.heroes.player;
+  const side = playerBattleSide();
+  const show = active && owner === 'player' && side && hero.spellbook.size > 0;
+  panel.hidden = !show;
+  if (!show) {
+    pendingSpellCast = null;
+    return;
+  }
+
+  $('battle-mana').textContent = hero.mana;
+  $('battle-mana-max').textContent = hero.manaMax;
+
+  const wrap = $('battle-spell-buttons');
+  wrap.innerHTML = '';
+  for (const spell of SPELLS) {
+    if (!hero.spellbook.has(spell.id)) continue;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-secondary btn-small' + (pendingSpellCast === spell.id ? ' active' : '');
+    btn.textContent = `${spell.name} (${spell.manaCost} mana)`;
+    btn.disabled = !canCastSpell(state, side, spell.id);
+    btn.addEventListener('click', () => handleSpellButtonClick(spell));
+    wrap.appendChild(btn);
+  }
+}
+
+function handleSpellButtonClick(spell) {
+  pendingCatapultTarget = false;
+  const needsTarget = spell.target === 'singleEnemy' || spell.target === 'singleAlly';
+  if (!needsTarget) {
+    castSpellAndRender(spell.id);
+    return;
+  }
+  pendingSpellCast = pendingSpellCast === spell.id ? null : spell.id;
+  renderBattle();
+}
+
+function castSpellAndRender(spellId, targetId) {
+  const side = playerBattleSide();
+  const result = castSpell(battleState, side, spellId, targetId);
+  pendingSpellCast = null;
+  if (result) {
+    stepBattleAuto(); // renders the post-cast state first, see stepBattleAuto's own comment
+    showEffect({ kind: 'spell', result });
+  } else {
+    renderBattle();
   }
 }
 
@@ -397,42 +1044,158 @@ function renderTurnOrder(state) {
 function renderBattleMap(state) {
   const svg = $('battle-map');
   svg.innerHTML = '';
+  const terrainFill = addTerrainDefs(svg);
+  addSpotlightGradientDef(svg);
   const allHexes = rectHexes(state.width, state.height);
   const { positions, width, height } = layoutHexes(allHexes, BATTLE_HEX_SIZE);
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  // #battle-effects sits on top of this SVG (same coordinate space, kept
+  // in sync here) but is deliberately never cleared by a render — see its
+  // own CSS comment for why (in-flight effect animations would otherwise
+  // get destroyed by any unrelated stack's turn causing a re-render).
+  $('battle-effects').setAttribute('viewBox', `0 0 ${width} ${height}`);
 
   const active = getStack(state, state.activeStackId);
   const isPlayerTurn = active && battleSideOwner(active.side) === 'player';
   const reachable = isPlayerTurn ? new Set(reachableHexes(state, active.id).map(key)) : new Set();
 
+  const wallHexes = [];
   for (const hex of allHexes) {
     const pos = positions.get(key(hex));
     const inRange = reachable.has(key(hex));
+    const isWall = isObstacleHex(state, hex);
+    const isCatapultTarget = pendingCatapultTarget && isWall;
+    const points = hexCorners(pos.x, pos.y, BATTLE_HEX_SIZE - 1);
     const poly = svgEl('polygon', {
-      points: hexCorners(pos.x, pos.y, BATTLE_HEX_SIZE - 1),
-      class: 'hex-tile' + (inRange ? ' in-range' : ''),
+      points, class: 'hex-tile' + (isWall ? ' obstacle' : ''),
+      fill: isWall ? terrainFill('stone') : terrainFill('grass'),
     });
     poly.addEventListener('click', () => handleBattleHexClick(hex));
     svg.appendChild(poly);
+    if (isCatapultTarget) {
+      svg.appendChild(svgEl('polygon', { points, class: 'hex-tile-tint catapult-target' }));
+    } else if (inRange) {
+      svg.appendChild(svgEl('polygon', { points, class: 'hex-tile-tint in-range' }));
+    }
+    if (isWall) wallHexes.push({ hex, pos });
   }
 
-  for (const stack of state.stacks) {
-    if (stack.count <= 0) continue;
+  // Spotlight (pinoy-board's CombatScreen technique): a warm glow behind
+  // whichever stack is currently active, so it's easy to spot at a glance
+  // whose turn it is even before reading the "Your turn"/"AI's turn" pill.
+  // Drawn right after the ground tiles and before every sprite/decor
+  // layer so it reads as ground-level light, not an overlay hiding
+  // anything on top of it.
+  if (active) {
+    const pos = positions.get(key(active.position));
+    if (pos) {
+      const r = BATTLE_HEX_SIZE * 2.2;
+      svg.appendChild(svgEl('circle', {
+        cx: pos.x, cy: pos.y, r, class: 'battle-spotlight', fill: 'url(#battle-spotlight-gradient)',
+      }));
+    }
+  }
+
+  // Wall-segment sprites, slightly oversized so consecutive wall hexes
+  // (same column, adjacent rows) read as one continuous wall rather than
+  // separate tiles with gaps. Not click-interactive — the hex-tile
+  // polygon underneath already handles clicks (including catapult
+  // targeting), same pointer-events: none rationale as .battle-stack-sprite.
+  const WALL_SPRITE_SIZE = BATTLE_HEX_SIZE * 1.5;
+  for (const { pos } of wallHexes) {
+    svg.appendChild(svgEl('image', {
+      href: spritePath('wall-segment'),
+      x: pos.x - WALL_SPRITE_SIZE / 2,
+      y: pos.y - WALL_SPRITE_SIZE / 2,
+      width: WALL_SPRITE_SIZE, height: WALL_SPRITE_SIZE,
+      class: 'battle-decor-sprite',
+    }));
+  }
+
+  // The catapult (specs/004-siege-battlefield) is flavor only — not a
+  // targetable/positioned unit (spec.md Non-goals) — shown once at a
+  // fixed spot behind the attacker's own edge whenever the battle is a
+  // siege, regardless of which side the player controls.
+  if (battleContext?.isSiege) {
+    const catapultPos = positions.get(key({ q: 0, r: SIEGE_GATE_ROW }));
+    if (catapultPos) {
+      const size = BATTLE_HEX_SIZE * 1.8;
+      svg.appendChild(svgEl('image', {
+        href: spritePath('catapult'),
+        x: catapultPos.x - size / 2,
+        y: catapultPos.y - size / 2,
+        width: size, height: size,
+        class: 'battle-decor-sprite',
+      }));
+    }
+  }
+
+  const pendingSpell = pendingSpellCast ? SPELLS.find((s) => s.id === pendingSpellCast) : null;
+
+  // Full-body sprites render much larger than their hex (pinoy-board's
+  // CombatToken renders ~1.6-2x its tile and lets it overflow into
+  // neighboring tiles, rather than containing it) — deliberately
+  // oversized and overflowing, anchored so the character's feet sit near
+  // the hex center rather than the sprite's own bounding-box center.
+  const STACK_SPRITE_SIZE = BATTLE_HEX_SIZE * 3.2;
+  const STACK_SPRITE_ANCHOR = 0.62; // fraction of height above the hex center
+
+  // Two passes: every sprite first, then every ring/label. Oversized,
+  // vertically-overlapping sprites (e.g. two stacks in adjacent rows)
+  // would otherwise cover a neighboring stack's own ring/count label if
+  // interleaved single-pass — this guarantees rings/labels always render
+  // above every sprite, not just their own.
+  const liveStacks = state.stacks.filter((s) => s.count > 0 && positions.get(key(s.position)));
+
+  for (const stack of liveStacks) {
     const pos = positions.get(key(stack.position));
-    if (!pos) continue;
     const creature = getCreature(stack.creatureTypeId);
-    const size = BATTLE_HEX_SIZE * 1.1;
+    // Oversized sprites overlap neighboring hexes, so they must not
+    // intercept clicks meant for those hexes — pointer-events: none
+    // (CSS) lets every click fall through to the actual hex polygon
+    // underneath, which already routes clicks (including attacks/spell
+    // targets) by hex coordinate regardless of which element is on top.
+    const image = svgEl('image', {
+      href: spritePath(creature.spriteId),
+      x: pos.x - STACK_SPRITE_SIZE / 2,
+      y: pos.y - STACK_SPRITE_SIZE * STACK_SPRITE_ANCHOR,
+      width: STACK_SPRITE_SIZE, height: STACK_SPRITE_SIZE,
+      class: 'battle-stack-sprite',
+      'data-stack-id': stack.id,
+    });
+    // Every creature's own art faces right (the attacker's side, which
+    // starts on the map's left edge facing the defender on the right —
+    // see images/creatures/*.png). The defender starts on the right edge
+    // facing the opposite way, so their sprites need a horizontal mirror
+    // to actually face the attacker instead of facing off the edge of the
+    // battlefield. Wrapped in its own <g> (mirrored around the sprite's
+    // own hex-center x, not the whole SVG's origin) rather than flipping
+    // the <image> directly with a CSS class, so this static per-side flip
+    // can never be clobbered by the stack-hit/stack-lunge CSS animations
+    // (js/main.js's flashStackSprite) — those set `transform` on the
+    // <image> itself for their own shake/scale keyframes, which would
+    // silently override (not compose with) a flip living on that same
+    // element and CSS property.
+    if (stack.side === 'defender') {
+      const g = svgEl('g', { transform: `translate(${pos.x}, 0) scale(-1, 1) translate(${-pos.x}, 0)` });
+      g.appendChild(image);
+      svg.appendChild(g);
+    } else {
+      svg.appendChild(image);
+    }
+  }
+
+  for (const stack of liveStacks) {
+    const pos = positions.get(key(stack.position));
     const owner = battleSideOwner(stack.side);
     const ringClass = owner === 'player' ? 'owner-player' : owner === 'ai' ? 'owner-ai' : 'owner-neutral';
+    const isSpellTarget = pendingSpell && active
+      && (pendingSpell.target === 'singleAlly' ? stack.side === active.side : stack.side !== active.side);
+
     svg.appendChild(svgEl('circle', {
       cx: pos.x, cy: pos.y, r: BATTLE_HEX_SIZE - 3,
-      class: 'owner-ring ' + ringClass + (stack.id === state.activeStackId ? ' hero-ring' : ''),
+      class: 'owner-ring ' + ringClass + (stack.id === state.activeStackId ? ' hero-ring' : '') + (isSpellTarget ? ' spell-target' : ''),
     }));
-    const img = svgEl('image', {
-      href: spritePath(creature.spriteId), x: pos.x - size / 2, y: pos.y - size / 2, width: size, height: size,
-    });
-    img.addEventListener('click', () => handleBattleHexClick(stack.position));
-    svg.appendChild(img);
 
     const label = svgEl('text', {
       x: pos.x, y: pos.y + BATTLE_HEX_SIZE - 4, class: 'stack-count-label', 'text-anchor': 'middle',
@@ -440,6 +1203,180 @@ function renderBattleMap(state) {
     label.textContent = stack.count;
     svg.appendChild(label);
   }
+
+  battleMapPositions = positions;
+  battleMapHexSize = BATTLE_HEX_SIZE;
+}
+
+// ==================================================================
+// BATTLE VISUAL EFFECTS (pinoy-board CombatScreen technique, adapted from
+// HTML/React to this project's plain SVG battle map: a themed icon flies
+// from attacker to target and pops on arrival, a floating "-12"/"+8"
+// number drifts up from the point of impact, and the target/attacker
+// sprites get a brief hit-flash/lunge reaction — see AttackEffect.tsx and
+// index.css's float-up/attack-effect-flight keyframes in that project).
+// Appended directly into the already-rendered #battle-map SVG rather than
+// threaded through renderBattleMap's own render pass, since these fire
+// *after* a render (see stepBattleAuto/castSpellAndRender/
+// handleBattleHexClick's call sites) so they aren't immediately wiped out
+// by the innerHTML = '' reset every render does.
+// ==================================================================
+
+// Pixel position for a hex, from the last render's own position map. Takes
+// a plain {q,r} hex (not a stack id + battleState lookup) deliberately —
+// attackStack/castSpell's results already carry each stack's hex directly
+// (see their own comments in battle.js) precisely so this never has to
+// read anything back out of battleState, which a killing blow can null
+// out (via finishBattleIfOver) before this ever runs.
+function hexPixelPos(hex) {
+  if (!hex || !battleMapPositions) return null;
+  return battleMapPositions.get(key(hex));
+}
+
+function flashStackSprite(stackId, className, durationMs) {
+  const el = $('battle-map').querySelector(`.battle-stack-sprite[data-stack-id="${stackId}"]`);
+  if (!el) return;
+  el.classList.remove(className); // restart the animation if it's still running from a prior hit
+  void el.getBoundingClientRect(); // force reflow so re-adding the class below re-triggers the animation
+  el.classList.add(className);
+  setTimeout(() => el.classList.remove(className), durationMs);
+}
+
+// Owner feedback: the effects felt too fast at their original speed —
+// every duration below is 3x its original value (and css/styles.css's
+// matching keyframe animation-durations are scaled the same 3x, since
+// each setTimeout here just controls how long an element stays in the
+// DOM before removal, not the animation's own pacing).
+const EFFECT_SPEED = 3;
+const FLIGHT_MS = 480 * EFFECT_SPEED;
+const FLOAT_MS = 900 * EFFECT_SPEED;
+const LUNGE_MS = 240 * EFFECT_SPEED;
+const HIT_MS = 420 * EFFECT_SPEED;
+const HEAL_MS = 500 * EFFECT_SPEED;
+// Owner feedback: the damage number/hit-flash landed before the flying
+// icon visually reached its target, and (for retaliation) the return
+// volley launched while the first icon was still mid-flight — both read
+// as "the attack effects aren't synced" / "can't tell where it came
+// from". battle-attack-flight (css/styles.css) reaches ~92% of the
+// distance by its 70% keyframe and finishes popping/fading by 100%, so
+// "impact" is derived from FLIGHT_MS itself (~75% of it) instead of being
+// an unrelated fixed delay that happened to only roughly line up at one
+// specific EFFECT_SPEED. Retaliation now waits for the full flight to
+// finish before its own return-flight starts, so the two never overlap —
+// attack lands, *then* the retaliating stack's volley flies back.
+const IMPACT_DELAY_MS = Math.round(FLIGHT_MS * 0.75);
+const REST_OF_FLIGHT_MS = FLIGHT_MS - IMPACT_DELAY_MS;
+
+// Serializes every attack/spell effect (see showEffect below) so two
+// actions landing close together in game time — a retaliation right after
+// the original hit, or an unrelated follow-up attack from the next
+// stack's own turn — never animate on top of each other. Without this,
+// "attack flies out" and "damage lands" could visually interleave between
+// two different, unrelated attacks, which is exactly what read as
+// "unsynced"/"can't tell where it came from": queueEffectStep chains each
+// phase onto a shared promise, so a queued step's callback only fires
+// once every previously queued step has fully finished playing out.
+let effectChain = Promise.resolve();
+function queueEffectStep(playFn, holdMs) {
+  effectChain = effectChain.then(() => new Promise((resolve) => {
+    playFn();
+    setTimeout(resolve, holdMs);
+  }));
+}
+
+function spawnFloatingNumber(pos, text, kind) {
+  if (!pos) return;
+  const el = svgEl('text', {
+    x: pos.x, y: pos.y - battleMapHexSize * 0.8, 'text-anchor': 'middle',
+    class: 'battle-float battle-float--' + kind,
+  });
+  el.textContent = text;
+  $('battle-effects').appendChild(el);
+  setTimeout(() => el.remove(), FLOAT_MS);
+}
+
+function spawnFlightEffect(fromPos, toPos, icon) {
+  if (!fromPos || !toPos) return;
+  const dx = toPos.x - fromPos.x;
+  const dy = toPos.y - fromPos.y;
+  const el = svgEl('text', {
+    x: fromPos.x, y: fromPos.y, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+    class: 'battle-attack-flight',
+    style: `--fx-dx:${dx}px; --fx-dy:${dy}px;`,
+  });
+  el.textContent = icon;
+  $('battle-effects').appendChild(el);
+  setTimeout(() => el.remove(), FLIGHT_MS);
+}
+
+const ATTACK_ICON_MELEE = '⚔️';
+const ATTACK_ICON_RANGED = '🏹';
+const SPELL_ICON = { damage: '🔥', heal: '✨', buff: '⬆️', debuff: '⬇️' };
+
+function showAttackEffect(result) {
+  const { attackerId, targetId, attackerHex, targetHex, damage, ranged, targetDied, retaliation } = result;
+  const fromPos = hexPixelPos(attackerHex);
+  const toPos = hexPixelPos(targetHex);
+
+  // Phase 1: the icon flies out (lunge fires with it, not queued — it's
+  // the attacker's own reaction, not something that needs to "land").
+  queueEffectStep(() => {
+    spawnFlightEffect(fromPos, toPos, ranged ? ATTACK_ICON_RANGED : ATTACK_ICON_MELEE);
+    flashStackSprite(attackerId, 'stack-lunge', LUNGE_MS);
+  }, IMPACT_DELAY_MS);
+  // Phase 2: only once the icon has visually arrived does the damage
+  // number/hit-flash appear, and only once that's held on screen for the
+  // rest of the flight's natural duration does anything queued after this
+  // (retaliation, or a completely different attack) get to start.
+  queueEffectStep(() => {
+    spawnFloatingNumber(toPos, `-${damage}`, 'dmg');
+    if (!targetDied) flashStackSprite(targetId, 'stack-hit', HIT_MS);
+  }, REST_OF_FLIGHT_MS);
+
+  if (retaliation) {
+    queueEffectStep(() => {
+      spawnFlightEffect(toPos, fromPos, ATTACK_ICON_MELEE);
+    }, IMPACT_DELAY_MS);
+    queueEffectStep(() => {
+      spawnFloatingNumber(fromPos, `-${retaliation.damage}`, 'dmg');
+      if (!retaliation.attackerDied) flashStackSprite(attackerId, 'stack-hit', HIT_MS);
+    }, REST_OF_FLIGHT_MS);
+  }
+}
+
+function showSpellEffect(result) {
+  const spell = SPELLS.find((s) => s.id === result.spellId);
+  if (!spell) return;
+  const fromPos = hexPixelPos(result.casterHex);
+  const icon = SPELL_ICON[spell.effect] || SPELL_ICON.damage;
+
+  // A spell's targets (e.g. "all enemies") were all struck by the same
+  // cast at the same instant, so they fly out and land together as one
+  // queued step each — only the spell as a *whole* is serialized against
+  // other, unrelated actions, the same way a single attack is above.
+  queueEffectStep(() => {
+    for (const target of result.targets) spawnFlightEffect(fromPos, hexPixelPos(target.hex), icon);
+  }, IMPACT_DELAY_MS);
+  queueEffectStep(() => {
+    for (const target of result.targets) {
+      const toPos = hexPixelPos(target.hex);
+      if (spell.effect === 'damage') {
+        spawnFloatingNumber(toPos, `-${spell.power}`, 'dmg');
+        flashStackSprite(target.id, 'stack-hit', HIT_MS);
+      } else if (spell.effect === 'heal') {
+        spawnFloatingNumber(toPos, `+${spell.power}`, 'heal');
+        flashStackSprite(target.id, 'stack-heal', HEAL_MS);
+      } else {
+        const buffed = spell.amount > 0;
+        spawnFloatingNumber(toPos, `${buffed ? '+' : ''}${spell.amount} ${spell.stat}`, buffed ? 'buff' : 'debuff');
+      }
+    }
+  }, REST_OF_FLIGHT_MS);
+}
+
+function showEffect({ kind, result }) {
+  if (kind === 'attack') showAttackEffect(result);
+  else showSpellEffect(result);
 }
 
 function handleBattleHexClick(hex) {
@@ -447,14 +1384,38 @@ function handleBattleHexClick(hex) {
   const active = getStack(battleState, battleState.activeStackId);
   if (!active || battleSideOwner(active.side) !== 'player') return;
 
+  if (pendingCatapultTarget) {
+    if (!isObstacleHex(battleState, hex)) return; // must click a standing wall hex
+    const ok = attackWall(battleState, playerBattleSide(), hex);
+    pendingCatapultTarget = false;
+    if (ok) stepBattleAuto();
+    else renderBattle();
+    return;
+  }
+
   const targetStack = battleState.stacks.find((s) => s.count > 0 && equals(s.position, hex));
+
+  if (pendingSpellCast) {
+    const spell = SPELLS.find((s) => s.id === pendingSpellCast);
+    if (!targetStack) return;
+    const wantsAlly = spell.target === 'singleAlly';
+    if (wantsAlly !== (targetStack.side === active.side)) return; // wrong side for this spell
+    castSpellAndRender(spell.id, targetStack.id);
+    return;
+  }
+
   let acted = false;
+  let attackResult = null;
   if (targetStack && targetStack.side !== active.side) {
-    acted = attackStack(battleState, active.id, targetStack.id);
+    attackResult = attackStack(battleState, active.id, targetStack.id);
+    acted = !!attackResult;
   } else if (!targetStack) {
     acted = moveStack(battleState, active.id, hex);
   }
-  if (acted) stepBattleAuto();
+  if (acted) {
+    stepBattleAuto(); // renders the post-action state first, see stepBattleAuto's own comment
+    if (attackResult) showEffect({ kind: 'attack', result: attackResult });
+  }
 }
 
 $('btn-battle-wait').addEventListener('click', () => {

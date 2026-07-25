@@ -2,8 +2,9 @@
 
 A free, browser-based tribute to Heroes of Might & Magic — no build step,
 no accounts, deployed to GitHub Pages. Move your hero across a hex
-adventure map, capture resource mines and creature dwellings, and fight
-tactical hex battles against an AI opponent.
+adventure map, capture resource mines and creature dwellings, recruit an
+army and learn spells at your Castle, besiege the enemy's own Castle, and
+fight tactical hex battles against an AI opponent.
 
 ## How to play
 
@@ -13,32 +14,67 @@ tactical hex battles against an AI opponent.
 2. Click a hex to move your hero there (pathfound automatically). Each hex
    costs 1 of your day's movement points (8/day).
 3. Walking onto an **unguarded** mine or dwelling captures it instantly —
-   mines add resources every day, dwellings add new creatures to your
-   army. Walking onto a **guarded** mine/dwelling, a monster stack, or the
-   enemy hero starts a tactical hex battle.
-4. In battle, creature stacks act in Speed order on an 11×9 hex
+   mines add resources every day, dwellings unlock that creature type at
+   your **Castle**. Walking onto a **guarded** mine/dwelling, a monster
+   stack, or the enemy hero starts a tactical hex battle instead.
+4. Open the **Castle** (🏰 button, available anytime on your turn) to spend
+   resources recruiting accrued creatures into your army or learning
+   spells, or to build a dwelling outright — unlocking that creature type
+   without ever finding or fighting for its map hex.
+5. In battle, creature stacks act in Speed order on an 11×9 hex
    battlefield. On your stack's turn, move or attack (melee needs
    adjacency; ranged creatures can attack from anywhere), or Wait/Defend.
-   Win and your surviving stacks return to the map with you. Lose your
-   whole army and you respawn at your Keep with a fresh starting army —
-   no permanent loss.
-5. Click **End Day** when you're done moving — the AI takes its full turn,
-   then a new day begins.
-6. **Defeat the enemy hero's army** in direct combat to win instantly.
+   Whenever it's your side's turn, you can also **cast a known spell** (🔮
+   panel) by spending mana — casting is free and doesn't use up a stack's
+   turn, but only once per round. Win and your surviving stacks return to
+   the map with you. Lose your whole army and you respawn at your Keep
+   with a fresh starting army and full mana — no permanent loss.
+6. Walking onto the **enemy's Keep** always starts a fight: their hero if
+   they're home (with a home-turf Defense bonus for them), or a **militia**
+   drafted from their Castle's recruit pool if they're away. Win the raid
+   and you loot 40% of their resources — their Castle itself is never
+   captured; only defeating the enemy hero directly still wins the game.
+   A siege battlefield has a **wall** with one open **gate** — standing
+   wall hexes block movement (not ranged attacks or spells), and as the
+   attacker you can **Fire Catapult** (once per round, free, no mana) to
+   blast open a second gap anywhere along the wall.
+7. Click **End Day** when you're done moving — the AI takes its full turn
+   (including its own Castle building/recruiting/spell-learning), then a
+   new day begins.
+8. **Defeat the enemy hero's army** in direct combat to win instantly.
    Otherwise, the game ends at Day 30 and whoever has the higher Kingdom
-   Score (mines + dwellings + army value) wins.
+   Score (mines + unlocked creature tiers + army value) wins.
 
 v1 is single-player (you vs. one AI hero) on one device — see the design
-docs below for what's deliberately deferred (multiplayer, magic,
-town-building, procedural maps, and more).
+docs below for what's deliberately deferred (multiplayer, procedural
+maps, and more). Town-building/recruiting shipped in
+[`specs/002-castle-creatures`](specs/002-castle-creatures/); castle
+sieges and hero spells shipped in
+[`specs/003-siege-and-spells`](specs/003-siege-and-spells/); the siege
+wall/gate battlefield and catapult shipped in
+[`specs/004-siege-battlefield`](specs/004-siege-battlefield/).
 
-## Placeholder art
+## Art
 
-Every mine, dwelling, monster, creature, and hero token currently renders
-as a hand-authored flat SVG placeholder (`images/objects/`,
-`images/creatures/`, generated via `scripts/gen-placeholder-sprites.mjs`).
-Swapping in real generated art later only means changing the lookup table
-in `js/sprites.js` — no engine or UI changes needed.
+The Castle and all 10 dwellings are real generated art in a flat
+cel-shaded icon style; all 10 creature sprites, the catapult, and the
+wall-segment battlefield prop are real generated art in a full-body/
+semi-realistic painterly style with true alpha transparency (matching the
+visual treatment of this workspace's `pinoy-board` project); the siege
+battle backdrop (`images/objects/castle-wall.png`) is a wide panoramic
+painterly scene in that same style. All generated via the `image-gen`
+skill, living in `images/objects/` and `images/creatures/`. The hex grid
+ground itself (`images/terrain/grass-hex.png`, `stone-hex.png`) isn't
+generated — those are *reused* straight from `pinoy-board`'s own
+`battleground/` hex skins (same workspace, same author), applied as SVG
+`<pattern>` fills on both the adventure map and the battlefield, with
+semi-transparent tint overlays on top for movement/catapult-target
+highlighting rather than separate texture files per state. Mines, the
+keep, monster/treasure map icons, and the 3 hero tokens are still
+hand-authored flat SVG placeholders (generated via
+`scripts/gen-placeholder-sprites.mjs`). Either way, swapping art only
+ever means changing the lookup table in `js/sprites.js` — no engine or UI
+changes needed (spec.md FR-3).
 
 ## Deploying to GitHub Pages
 
@@ -55,17 +91,23 @@ The site is fully static — no build step.
 ```bash
 python3 -m http.server 8000   # any static server works
 # open http://localhost:8000
-node --test tests/*.test.mjs   # rules-engine unit tests (61 tests)
+node --test tests/*.test.mjs   # rules-engine unit tests (150 tests)
 ```
 
 ## Design docs (SDD)
 
 This project was built spec-first. See
-[`specs/001-hex-heroes/`](specs/001-hex-heroes/):
-[spec.md](specs/001-hex-heroes/spec.md) (what & why) →
-[plan.md](specs/001-hex-heroes/plan.md) (architecture, decisions, content
-values) → [tasks.md](specs/001-hex-heroes/tasks.md) (work breakdown and
-the deferred-features backlog).
+[`specs/001-hex-heroes/`](specs/001-hex-heroes/) for the core v1 loop
+(spec → plan → tasks),
+[`specs/002-castle-creatures/`](specs/002-castle-creatures/) for the
+Castle build/recruit economy that superseded v1's passive-dwelling
+Decision #3, and
+[`specs/003-siege-and-spells/`](specs/003-siege-and-spells/) for castle
+sieges and the hero spellbook/mana system, which together superseded
+v1's "no magic" and 002's "no castle combat" Non-goals, and
+[`specs/004-siege-battlefield/`](specs/004-siege-battlefield/) (design
+only — not yet implemented) for the siege-specific wall/gate battlefield
+obstacles planned on top of that.
 
 Unlike this workspace's other party games, this one has no networking
 yet — v1 is a single-device hero-vs-AI game. Multiplayer, following the

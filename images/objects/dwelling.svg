@@ -1,4 +1,37 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img">
-  <rect width="64" height="64" rx="10" fill="#2b1608"/>
-  <rect x="14" y="30" width="36" height="22" fill="#7a5230"/><polygon fill="#a5673a" points="10,32 32,12 54,32"/><rect x="28" y="38" width="8" height="14" fill="#3a2010"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="dwWall" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#b0bec5"/>
+      <stop offset="50%" stop-color="#78909c"/>
+      <stop offset="100%" stop-color="#455a64"/>
+    </linearGradient>
+    <filter id="dwGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#37474f" flood-opacity="0.7"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#dwGlow)">
+    <!-- Base Platform -->
+    <ellipse cx="64" cy="108" rx="52" ry="12" fill="#2b3829"/>
+
+    <!-- Main Barracks Hall -->
+    <rect x="24" y="56" width="80" height="50" rx="3" fill="url(#dwWall)" stroke="#263238" stroke-width="3"/>
+    <!-- Roof with Wooden Beams -->
+    <polygon points="16,60 64,18 112,60" fill="#6d4c41" stroke="#3e2723" stroke-width="3"/>
+    <polygon points="24,56 64,24 104,56" fill="#8d6e63"/>
+
+    <!-- Wooden Arch Door -->
+    <path d="M 52 106 L 52 74 A 12 12 0 0 1 76 74 L 76 106 Z" fill="#3e2723" stroke="#ffd54f" stroke-width="2"/>
+
+    <!-- Dual Military Banner Flags -->
+    <line x1="28" y1="56" x2="28" y2="28" stroke="#37474f" stroke-width="3"/>
+    <path d="M 28 30 L 12 36 L 28 42 Z" fill="#1e88e5"/>
+
+    <line x1="100" y1="56" x2="100" y2="28" stroke="#37474f" stroke-width="3"/>
+    <path d="M 100 30 L 116 36 L 100 42 Z" fill="#1e88e5"/>
+
+    <!-- Crest Shield above door -->
+    <circle cx="64" cy="46" r="10" fill="#ffd54f" stroke="#5d4037" stroke-width="2"/>
+    <polygon points="64,39 68,44 64,52 60,44" fill="#1e88e5"/>
+  </g>
 </svg>

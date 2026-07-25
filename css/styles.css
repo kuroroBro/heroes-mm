@@ -78,6 +78,7 @@ button { font-family: inherit; }
 .btn-ghost { background: transparent; border-color: transparent; }
 .btn-big { font-size: 1.1rem; padding: 1rem 1.5rem; }
 .btn-small { font-size: 0.85rem; padding: 0.5rem 0.9rem; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
 dialog {
   border: var(--border-w) solid var(--surface-border);
@@ -100,6 +101,16 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
   max-width: 40rem;
 }
 .panel-header h2 { font-family: var(--font-display); margin: 0; }
+.castle-icon { border-radius: 8px; }
+
+.section-title {
+  font-family: var(--font-display);
+  width: 100%;
+  max-width: 42rem;
+  margin: 1.5rem 0 0;
+  font-size: 1rem;
+  color: var(--text-dim);
+}
 
 .hero-type-grid {
   display: grid;
@@ -148,6 +159,48 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
 }
 .hero-pill-player { border-color: var(--owner-player); }
 
+/* Map Legend Filter Bar */
+.map-legend-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 60rem;
+  margin-bottom: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--radius);
+}
+.legend-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin-right: 0.4rem;
+}
+.legend-btn {
+  background: var(--bg-2);
+  border: 1px solid var(--surface-border);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.legend-btn:hover {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+.legend-btn.active {
+  background: var(--accent);
+  color: #241a10;
+  border-color: var(--accent-dark);
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(255, 210, 63, 0.4);
+}
+
 .adv-body {
   display: flex;
   gap: 1.5rem;
@@ -157,6 +210,7 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
   flex-wrap: wrap;
 }
 .adv-map-wrap {
+  position: relative;
   background: var(--bg-2);
   border: var(--border-w) solid var(--surface-border);
   border-radius: var(--radius);
@@ -166,6 +220,41 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
 }
 .adv-body .adv-map-wrap { flex: 1 1 32rem; width: auto; }
 .hex-map { width: 100%; height: auto; display: block; }
+
+/* Inspector Card */
+.inspector-card {
+  background: var(--bg-2);
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+}
+.inspector-title {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+}
+.inspector-body {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+/* Hover Tooltip */
+.adv-map-tooltip {
+  position: absolute;
+  z-index: 100;
+  pointer-events: none;
+  background: rgba(20, 16, 11, 0.92);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0.4rem 0.7rem;
+  color: var(--text);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  white-space: nowrap;
+}
 
 .adv-sidebar {
   flex: 0 0 14rem;
@@ -181,17 +270,95 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
 .selected-info { color: var(--text-dim); font-size: 0.8rem; }
 
 .hex-tile {
-  fill: #3a2b1a;
   stroke: #1c140c;
   stroke-width: 1;
   cursor: pointer;
-  transition: fill 0.15s ease;
+  transition: filter 0.15s ease, stroke 0.15s ease;
 }
-.hex-tile:hover { fill: #4a3722; }
-.hex-tile.in-range { fill: #4a5c2e; }
-.hex-tile.in-range:hover { fill: #5a7038; }
+.hex-tile:hover { filter: brightness(1.3); }
+.hex-tile.filter-matched { stroke: var(--accent); stroke-width: 2; }
+.hex-tile.obstacle { stroke: #14100b; stroke-width: 2; }
 
-.hex-object-icon, image { cursor: pointer; }
+.hex-tile-highlight {
+  fill: var(--accent);
+  fill-opacity: 0.25;
+  pointer-events: none;
+  animation: hexHighlightPulse 1.5s infinite alternate ease-in-out;
+}
+@keyframes hexHighlightPulse {
+  0% { fill-opacity: 0.15; }
+  100% { fill-opacity: 0.45; }
+}
+
+/* Semi-transparent state overlays drawn on top of a textured .hex-tile */
+.hex-tile-tint {
+  pointer-events: none;
+  stroke: none;
+}
+.hex-tile-tint.in-range { fill: #4a5c2e; fill-opacity: 0.55; }
+.hex-tile-tint.catapult-target { fill: #7a3a2a; fill-opacity: 0.6; }
+
+.hex-object-icon, image {
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+.hex-object-icon:hover {
+  filter: drop-shadow(0 0 6px rgba(255, 210, 63, 0.8));
+}
+.battle-stack-sprite { pointer-events: none; }
+.battle-decor-sprite { pointer-events: none; }
+
+/* Glowing Pedestals and Threat Auras */
+.hero-pedestal-aura {
+  fill: none;
+  stroke-width: 4;
+  pointer-events: none;
+  animation: heroAuraPulse 2s infinite alternate ease-in-out;
+}
+.hero-pedestal-aura.owner-player {
+  stroke: #4fc3f7;
+  fill: rgba(79, 195, 247, 0.25);
+  filter: drop-shadow(0 0 8px #4fc3f7);
+}
+.hero-pedestal-aura.owner-ai {
+  stroke: #ff6b4a;
+  fill: rgba(255, 107, 74, 0.25);
+  filter: drop-shadow(0 0 8px #ff6b4a);
+}
+
+.keep-pedestal {
+  fill: rgba(255, 210, 63, 0.15);
+  stroke-width: 3;
+  pointer-events: none;
+}
+.keep-pedestal.owner-player { stroke: var(--owner-player); fill: rgba(79, 195, 247, 0.2); }
+.keep-pedestal.owner-ai { stroke: var(--owner-ai); fill: rgba(255, 107, 74, 0.2); }
+
+.threat-aura-pulse {
+  fill: rgba(255, 23, 68, 0.2);
+  stroke: #ff1744;
+  stroke-width: 2;
+  stroke-dasharray: 4 2;
+  pointer-events: none;
+  animation: threatPulse 1.8s infinite alternate ease-in-out;
+}
+
+.treasure-aura-glow {
+  fill: rgba(255, 215, 0, 0.25);
+  stroke: #ffd700;
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+@keyframes heroAuraPulse {
+  0% { stroke-opacity: 0.6; fill-opacity: 0.15; }
+  100% { stroke-opacity: 1; fill-opacity: 0.4; }
+}
+
+@keyframes threatPulse {
+  0% { stroke-opacity: 0.5; stroke-dashoffset: 0; }
+  100% { stroke-opacity: 1; stroke-dashoffset: 6; }
+}
 
 .owner-ring {
   fill: none;
@@ -204,6 +371,18 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
 .hero-ring { stroke-width: 4; }
 
 .turn-order { display: flex; gap: 0.4rem; flex-wrap: wrap; max-width: 60rem; width: 100%; margin-bottom: 0.75rem; }
+
+.battle-siege-wall {
+  width: 100%;
+  max-width: 60rem;
+  border: var(--border-w) solid var(--surface-border);
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  overflow: hidden;
+  line-height: 0;
+}
+.battle-siege-wall img { width: 100%; height: auto; display: block; max-height: 14rem; object-fit: cover; }
+.battle-siege-wall + .adv-map-wrap { border-radius: 0 0 var(--radius) var(--radius); }
 .turn-chip {
   border-radius: 8px;
   padding: 0.2rem;
@@ -225,8 +404,119 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
   gap: 0.6rem;
   margin-top: 0.75rem;
 }
+.battle-controls[hidden] { display: none; }
 .battle-active-label { font-weight: 700; margin-right: 0.5rem; }
 .battle-log { color: var(--text-dim); font-size: 0.85rem; min-height: 1.2rem; }
+
+.battle-spell-panel {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.6rem;
+}
+.battle-spell-panel[hidden] { display: none; }
+.battle-spell-buttons { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.battle-spell-buttons .btn.active { box-shadow: 0 0 0 2px var(--accent); }
+
+.owner-ring.spell-target { stroke: var(--accent); stroke-width: 4; stroke-dasharray: 4 3; }
+
+/* A second SVG stacked exactly on top of #battle-map (same viewBox, kept
+   in sync every render — js/main.js's renderBattleMap), reserved only for
+   flight icons/floating numbers (js/main.js's spawnFlightEffect/
+   spawnFloatingNumber). #battle-map itself does innerHTML = '' on every
+   single render — any effect element living there would get destroyed
+   mid-animation the instant an unrelated stack's turn causes a re-render.
+   This layer is never cleared by a render, only ever appended to/pruned
+   by the effect functions' own setTimeout cleanup, so an animation always
+   plays out in full regardless of how many renders happen underneath it. */
+.battle-effects-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Spotlight (pinoy-board's CombatScreen technique): a soft glow behind
+   whichever stack currently has the turn, so it's easy to spot at a
+   glance. The gradient itself is defined once per render as an SVG
+   <radialGradient> (js/main.js's addSpotlightGradientDef) — this class
+   just keeps the circle out of the way of clicks. */
+.battle-spotlight { pointer-events: none; }
+
+/* Attack/spell reactions on a stack's own sprite (js/main.js's
+   flashStackSprite) — transform-box/transform-origin make the scale/shake
+   pivot around the sprite's own center rather than the SVG canvas's
+   origin, which is what CSS transforms use by default for SVG elements. */
+.battle-stack-sprite { transform-box: fill-box; transform-origin: center; }
+
+@keyframes stack-hit-shake {
+  0%, 100% { transform: translateX(0); filter: brightness(1) saturate(1); }
+  15% { transform: translateX(-6%); filter: brightness(2) saturate(2); }
+  35% { transform: translateX(5%); }
+  55% { transform: translateX(-3%); }
+  75% { transform: translateX(2%); }
+}
+.stack-hit { animation: stack-hit-shake 1260ms ease; }
+
+@keyframes stack-lunge-punch {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+.stack-lunge { animation: stack-lunge-punch 720ms ease; }
+
+@keyframes stack-heal-flash {
+  0% { filter: brightness(1.8) hue-rotate(60deg); }
+  100% { filter: brightness(1) hue-rotate(0deg); }
+}
+.stack-heal { animation: stack-heal-flash 1500ms ease; }
+
+/* Floating combat numbers (js/main.js's spawnFloatingNumber): pop in at
+   the point of impact, drift upward, fade — pinoy-board's float-up. */
+@keyframes battle-float-up {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(0.7); }
+  15% { opacity: 1; transform: translate(-50%, -10px) scale(1.25); }
+  100% { opacity: 0; transform: translate(-50%, -42px) scale(1); }
+}
+.battle-float {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 18px;
+  paint-order: stroke;
+  stroke: #14100b;
+  stroke-width: 3px;
+  pointer-events: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: battle-float-up 2700ms ease-out forwards;
+}
+.battle-float--dmg { fill: #ff5252; }
+.battle-float--heal { fill: #69f0ae; }
+.battle-float--buff { fill: #4fc3f7; }
+.battle-float--debuff { fill: #ba68c8; }
+
+/* Attack-effect flight (js/main.js's spawnFlightEffect, pinoy-board's
+   AttackEffect.tsx/attack-effect-flight): an icon flies from attacker to
+   target — translate distance set per-instance via --fx-dx/--fx-dy — and
+   pops on arrival. One combined animation covers both melee (short
+   travel) and ranged/spell (long travel) alike. Deliberately no rotation:
+   unlike pinoy-board's themed directional art, these are plain emoji —
+   rotating a symmetric/status icon (e.g. an "up" arrow for a buff) would
+   read as a different, wrong icon (a "down" arrow / debuff) partway
+   through the flight. */
+@keyframes battle-attack-flight {
+  0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
+  15% { transform: translate(calc(var(--fx-dx) * 0.15), calc(var(--fx-dy) * 0.15)) scale(1); opacity: 1; }
+  70% { transform: translate(calc(var(--fx-dx) * 0.92), calc(var(--fx-dy) * 0.92)) scale(1.1); opacity: 1; }
+  100% { transform: translate(var(--fx-dx), var(--fx-dy)) scale(1.6); opacity: 0; }
+}
+.battle-attack-flight {
+  font-size: 26px;
+  pointer-events: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: battle-attack-flight 1440ms ease-out forwards;
+}
 
 .stack-count-label {
   fill: var(--text);
@@ -236,6 +526,42 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
   stroke: #14100b;
   stroke-width: 3px;
   pointer-events: none;
+}
+
+.castle-rows {
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  width: 100%;
+  max-width: 42rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.castle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.9rem;
+  flex-wrap: wrap;
+}
+.castle-row.locked { opacity: 0.85; }
+.castle-row img { flex: 0 0 auto; display: block; }
+.castle-row-info { flex: 1 1 12rem; min-width: 0; }
+.castle-row-name { font-weight: 700; }
+.castle-row-detail { color: var(--text-dim); font-size: 0.8rem; }
+.castle-row-actions { display: flex; align-items: center; gap: 0.4rem; flex: 0 0 auto; }
+.castle-row-actions input[type="number"] {
+  width: 3.6rem;
+  background: var(--bg-2);
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 0.4rem 0.3rem;
+  font-family: inherit;
 }
 
 .final-scores {

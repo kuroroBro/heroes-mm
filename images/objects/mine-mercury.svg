@@ -1,4 +1,46 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img">
-  <rect width="64" height="64" rx="10" fill="#2b1608"/>
-  <circle cx="32" cy="32" r="18" fill="#cfd8dc" stroke="#8a97a0" stroke-width="3"/><circle cx="26" cy="26" r="4" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="mercGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff5252"/>
+      <stop offset="50%" stop-color="#d50000"/>
+      <stop offset="100%" stop-color="#880000"/>
+    </linearGradient>
+    <linearGradient id="silverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#78909c"/>
+    </linearGradient>
+    <filter id="mercGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#ff1744" flood-opacity="0.7"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#mercGlow)">
+    <!-- Alchemy Lab Structure -->
+    <rect x="20" y="50" width="88" height="62" rx="4" fill="#37474f" stroke="#212121" stroke-width="3"/>
+    <!-- Roof with Chimney -->
+    <polygon points="12,54 64,16 116,54" fill="#455a64" stroke="#212121" stroke-width="3"/>
+    <rect x="30" y="20" width="14" height="24" fill="#263238"/>
+    <!-- Chimney Smoke -->
+    <circle cx="36" cy="14" r="5" fill="#b0bec5" opacity="0.6"/>
+    <circle cx="40" cy="6" r="7" fill="#b0bec5" opacity="0.4"/>
+
+    <!-- Central Alchemy Apparatus (Glass Flask) -->
+    <!-- Metal Stand -->
+    <path d="M 44 112 L 56 70 L 72 70 L 84 112" stroke="#263238" stroke-width="4" fill="none"/>
+    <rect x="52" y="104" width="24" height="8" fill="#ff6d00"/> <!-- Fire Under Flask -->
+
+    <!-- Glass Flask Vessel -->
+    <path d="M 58 64 L 58 74 A 20 20 0 1 0 70 74 L 70 64 Z" fill="rgba(207, 216, 220, 0.4)" stroke="#eceff1" stroke-width="2"/>
+    <!-- Mercury Liquid inside Flask -->
+    <path d="M 46 88 A 20 20 0 0 0 82 88 Z" fill="url(#mercGrad)"/>
+    <circle cx="64" cy="84" r="3" fill="#ffffff"/>
+
+    <!-- Distillation Tube -->
+    <path d="M 68 66 Q 88 50 96 74 L 96 104" stroke="url(#silverGrad)" stroke-width="4" fill="none"/>
+
+    <!-- Mercury Flask Badge -->
+    <circle cx="96" cy="36" r="22" fill="#b71c1c" stroke="#ff1744" stroke-width="3"/>
+    <path d="M 92 24 L 92 30 A 10 10 0 1 0 100 30 L 100 24 Z" fill="url(#mercGrad)" stroke="#ffffff" stroke-width="1.5"/>
+    <circle cx="96" cy="38" r="2" fill="#ffffff"/>
+  </g>
 </svg>

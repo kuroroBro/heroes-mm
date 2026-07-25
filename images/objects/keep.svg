@@ -1,4 +1,66 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img">
-  <rect width="64" height="64" rx="10" fill="#2b1608"/>
-  <rect x="16" y="26" width="32" height="26" fill="#9a9a9a"/><rect x="14" y="18" width="8" height="12" fill="#7d7d7d"/><rect x="42" y="18" width="8" height="12" fill="#7d7d7d"/><rect x="28" y="10" width="8" height="16" fill="#7d7d7d"/><rect x="27" y="38" width="10" height="14" fill="#3a2010"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="keepWall" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8a9ba8"/>
+      <stop offset="50%" stop-color="#5a6875"/>
+      <stop offset="100%" stop-color="#38434e"/>
+    </linearGradient>
+    <linearGradient id="keepRoof" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4a90e2"/>
+      <stop offset="100%" stop-color="#1c4880"/>
+    </linearGradient>
+    <linearGradient id="keepGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffe678"/>
+      <stop offset="100%" stop-color="#c99a10"/>
+    </linearGradient>
+    <radialGradient id="gateGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffb74d" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#421a00" stop-opacity="1"/>
+    </radialGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <!-- Base Foundation -->
+    <ellipse cx="64" cy="110" rx="54" ry="14" fill="#1c241b"/>
+    <path d="M 14 104 L 114 104 L 106 114 L 22 114 Z" fill="#2b3829"/>
+
+    <!-- Main Fortress Walls -->
+    <rect x="28" y="54" width="72" height="52" rx="4" fill="url(#keepWall)"/>
+    <!-- Brick details -->
+    <path d="M 32 64 H 56 M 64 64 H 96 M 40 76 H 72 M 80 76 H 96 M 32 88 H 60 M 68 88 H 96" stroke="#434f5b" stroke-width="2"/>
+
+    <!-- Left Tower -->
+    <rect x="18" y="34" width="24" height="72" rx="3" fill="url(#keepWall)"/>
+    <path d="M 16 34 L 16 26 L 22 26 L 22 30 L 28 30 L 28 26 L 34 26 L 34 30 L 40 30 L 40 26 L 44 26 L 44 34 Z" fill="#434f5b"/>
+    <polygon points="14,26 30,2 46,26" fill="url(#keepRoof)"/>
+
+    <!-- Right Tower -->
+    <rect x="86" y="34" width="24" height="72" rx="3" fill="url(#keepWall)"/>
+    <path d="M 84 34 L 84 26 L 90 26 L 90 30 L 96 30 L 96 26 L 102 26 L 102 30 L 108 30 L 108 26 L 114 26 L 114 34 Z" fill="#434f5b"/>
+    <polygon points="82,26 98,2 114,26" fill="url(#keepRoof)"/>
+
+    <!-- Central Keep Spire -->
+    <rect x="46" y="24" width="36" height="34" rx="2" fill="url(#keepWall)"/>
+    <polygon points="42,24 64,-4 86,24" fill="url(#keepRoof)"/>
+    <polygon points="64,-4 64,12 62,6" fill="url(#keepGold)"/>
+    <path d="M 64 -4 L 80 -10 L 74 2 Z" fill="#e53935"/> <!-- Red Flag -->
+
+    <!-- Main Arched Gate -->
+    <path d="M 50 106 L 50 74 A 14 14 0 0 1 78 74 L 78 106 Z" fill="url(#gateGlow)"/>
+    <path d="M 50 106 L 50 74 A 14 14 0 0 1 78 74 L 78 106 Z" stroke="url(#keepGold)" stroke-width="3" fill="none"/>
+    <line x1="64" y1="60" x2="64" y2="106" stroke="#2a1400" stroke-width="2"/>
+    <line x1="50" y1="84" x2="78" y2="84" stroke="#2a1400" stroke-width="2"/>
+
+    <!-- Windows -->
+    <rect x="26" y="44" width="8" height="14" rx="4" fill="#ffb74d"/>
+    <rect x="94" y="44" width="8" height="14" rx="4" fill="#ffb74d"/>
+    <rect x="60" y="34" width="8" height="14" rx="4" fill="#ffb74d"/>
+
+    <!-- Crown Shield Emblem -->
+    <circle cx="64" cy="54" r="10" fill="url(#keepGold)" stroke="#5d4037" stroke-width="2"/>
+    <path d="M 58 52 L 61 48 L 64 53 L 67 48 L 70 52 L 70 57 L 58 57 Z" fill="#b71c1c"/>
+  </g>
 </svg>

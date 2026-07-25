@@ -5,14 +5,18 @@
 
 import { key, equals, findPath, inRect } from './hexgrid.js';
 import { getHeroType } from './heroTypes.js';
-import { getCreature, creaturePower } from './creatures.js';
-import { emptyResourcePool, MINE_YIELD } from './resources.js';
+import { getCreature } from './creatures.js';
+import { RESOURCES, emptyResourcePool, MINE_YIELD } from './resources.js';
 import { MAP_WIDTH, MAP_HEIGHT, MAP_OBJECTS, KEEP_PLAYER, KEEP_AI } from './mapObjects.js';
+import { MAX_ARMY_SLOTS, armyValue } from './army.js';
+import { initCastle, unlock, accrueGrowth, draftMilitia, returnMilitiaSurvivors } from './castle.js';
 
+export { MAX_ARMY_SLOTS };
 export const MOVEMENT_PER_DAY = 8;
 export const DAY_LIMIT = 30;
-export const MAX_ARMY_SLOTS = 7;
-const DWELLING_MAX_GARRISON_MULT = 10;
+export const MANA_MAX = 50; // uniform across hero types, same precedent as MOVEMENT_PER_DAY
+export const HOME_TURF_DEFENSE_BONUS = 2; // specs/003-siege-and-spells US-6
+export const SIEGE_LOOT_FRACTION = 0.4; // specs/003-siege-and-spells US-5
 const XP_PER_LEVEL = 1000;
 const XP_PER_ARMY_VALUE = 2; // XP gained = defeated army value * this multiplier
 
@@ -38,6 +42,10 @@ function createHero(owner, heroTypeId) {
     defense: heroType.defense,
     army: heroType.startingArmy.map((s) => ({ ...s })),
     resources: emptyResourcePool(),
+    castle: initCastle(),
+    mana: 0,
+    manaMax: MANA_MAX,
+    spellbook: new Set(),
   };
 }
 
@@ -78,30 +86,11 @@ function isPassableForMove(state, owner, goal) {
   };
 }
 
-// Merge `count` of `creatureTypeId` into `army` (mutates army in place),
-// preferring an existing matching stack, else the first free slot up to
-// MAX_ARMY_SLOTS. Excess when the army is full and no matching stack
-// exists is dropped (documented v1 edge case — see plan.md content values,
-// the 4 dwellings + 2 starting stacks fit comfortably under 7 slots).
-function mergeIntoArmy(army, creatureTypeId, count) {
-  if (count <= 0) return;
-  const existing = army.find((s) => s.creatureTypeId === creatureTypeId);
-  if (existing) {
-    existing.count += count;
-    return;
-  }
-  if (army.length < MAX_ARMY_SLOTS) {
-    army.push({ creatureTypeId, count });
-  }
-}
-
-function armyValue(army) {
-  return army.reduce((total, s) => total + creaturePower(getCreature(s.creatureTypeId)) * s.count, 0);
-}
-
 // Resolve what happens when a hero successfully enters an unguarded hex
-// (no battle needed): capture mines/dwellings, collect dwelling garrison,
-// pick up treasure (one-time, removes the object).
+// (no battle needed): capture mines/dwellings (capturing a dwelling
+// unlocks its creature type in the hero's Castle — see castle.js and
+// specs/002-castle-creatures/spec.md US-4 — rather than an instant army
+// merge), pick up treasure (one-time, removes the object).
 function resolveOccupancy(state, owner, hex) {
   const hero = state.heroes[owner];
   const objKey = key(hex);
@@ -112,10 +101,7 @@ function resolveOccupancy(state, owner, hex) {
     occupant.ownerId = owner;
   } else if (occupant.type === 'dwelling') {
     occupant.ownerId = owner;
-    if (occupant.garrison > 0) {
-      mergeIntoArmy(hero.army, occupant.creatureTypeId, occupant.garrison);
-      occupant.garrison = 0;
-    }
+    unlock(hero, occupant.creatureTypeId);
   } else if (occupant.type === 'treasure') {
     hero.resources[occupant.resource] = (hero.resources[occupant.resource] || 0) + occupant.amount;
     state.hexes.delete(objKey);
@@ -156,6 +142,20 @@ export function moveHero(state, owner, targetHex) {
     state.pendingBattle = { attackerOwner: owner, defenderKind: 'guard', defenderOwner: null, hex: targetHex };
     return true;
   }
+  // The enemy's Keep, with their hero away (had the hero been standing
+  // there, the opponent-position check above already fired) — always
+  // attackable, defended by a militia drafted from their Castle's
+  // recruit pool (specs/003-siege-and-spells US-4/US-5). Drafting happens
+  // now, once, so both the battle's starting army and this pendingBattle
+  // record (for XP on resolution) see the exact same snapshot.
+  if (occupant && occupant.type === 'keep' && occupant.ownerId !== owner) {
+    const militia = draftMilitia(state.heroes[occupant.ownerId]);
+    state.phase = 'battle';
+    state.pendingBattle = {
+      attackerOwner: owner, defenderKind: 'siege', defenderOwner: occupant.ownerId, hex: targetHex, militia,
+    };
+    return true;
+  }
   if (occupant && occupant.type === 'monster') {
     // A 'monster' object with no remaining guard was already cleared;
     // treat as empty ground (should not normally happen since cleared
@@ -185,20 +185,52 @@ export function planMoveTowards(state, owner, targetHex) {
   return path.path[stepIndex];
 }
 
+// True if the current pending battle is a siege — either an undefended
+// Castle's militia (defenderKind 'siege'), or a hero-vs-hero fight
+// happening at the defender's own Keep (spec.md US-4: "fought as a siege
+// ... rather than a plain field battle", same fight that gets the
+// home-turf bonus in getPendingBattleArmies below). Used by main.js to
+// decide whether to show the siege battlefield backdrop.
+export function isSiegeBattle(state) {
+  const pending = state.pendingBattle;
+  if (!pending) return false;
+  if (pending.defenderKind === 'siege') return true;
+  if (pending.defenderKind === 'hero') return equals(pending.hex, homeKeep(pending.defenderOwner));
+  return false;
+}
+
 // Everything main.js needs from adventure.js to hand off to battle.js.
+// The attacker is always a hero (spec.md US-3), so attackerBonus always
+// carries mana/spellsKnown; the defender only does for defenderKind ===
+// 'hero' (a siege's militia and a neutral guard have no hero, so no
+// spellcasting on that side — battle.js's heroSideFrom treats an absent
+// `mana` field as "no caster").
 export function getPendingBattleArmies(state) {
   const pending = state.pendingBattle;
   if (!pending) return null;
   const attacker = state.heroes[pending.attackerOwner];
   const attackerArmy = attacker.army.map((s) => ({ ...s }));
-  const attackerBonus = { attack: attacker.attack, defense: attacker.defense };
+  const attackerBonus = {
+    attack: attacker.attack, defense: attacker.defense,
+    mana: attacker.mana, spellsKnown: [...attacker.spellbook],
+  };
 
   let defenderArmy;
   let defenderBonus = { attack: 0, defense: 0 };
   if (pending.defenderKind === 'hero') {
     const defender = state.heroes[pending.defenderOwner];
     defenderArmy = defender.army.map((s) => ({ ...s }));
-    defenderBonus = { attack: defender.attack, defense: defender.defense };
+    defenderBonus = {
+      attack: defender.attack, defense: defender.defense,
+      mana: defender.mana, spellsKnown: [...defender.spellbook],
+    };
+    // Home-turf defense bonus when this hero-vs-hero fight is happening
+    // at the defender's own Keep (specs/003-siege-and-spells US-6).
+    if (equals(pending.hex, homeKeep(pending.defenderOwner))) {
+      defenderBonus.defense += HOME_TURF_DEFENSE_BONUS;
+    }
+  } else if (pending.defenderKind === 'siege') {
+    defenderArmy = pending.militia.map((s) => ({ ...s }));
   } else {
     const occupant = getObject(state, pending.hex);
     defenderArmy = guardArmy(occupant) || [];
@@ -208,14 +240,22 @@ export function getPendingBattleArmies(state) {
 
 // Apply a finished battle's outcome. `winnerSide` is 'attacker' or
 // 'defender' (battle.js's vocabulary); `survivingStacks` is that side's
-// stacks with post-battle counts.
-export function resolveBattleOutcome(state, winnerSide, survivingStacks) {
+// stacks with post-battle counts. `remainingMana` (specs/003-siege-and-
+// spells) is `{ attacker?, defender? }` — the battle-final mana for
+// whichever sides had a hero (battle.js's `state.heroSides`), synced back
+// onto the adventure-level hero before any respawn logic below might
+// override it with a full restore.
+export function resolveBattleOutcome(state, winnerSide, survivingStacks, remainingMana = {}) {
   const pending = state.pendingBattle;
   if (!pending) return;
   const attackerOwner = pending.attackerOwner;
+  const attacker = state.heroes[attackerOwner];
+  if (remainingMana.attacker != null) attacker.mana = remainingMana.attacker;
 
   if (pending.defenderKind === 'hero') {
     const defenderOwner = pending.defenderOwner;
+    const defender = state.heroes[defenderOwner];
+    if (remainingMana.defender != null) defender.mana = remainingMana.defender;
     const winnerOwner = winnerSide === 'attacker' ? attackerOwner : defenderOwner;
     state.heroes[winnerOwner].army = survivingStacks.map((s) => ({ ...s }));
     state.phase = 'gameover';
@@ -225,15 +265,45 @@ export function resolveBattleOutcome(state, winnerSide, survivingStacks) {
     return;
   }
 
+  if (pending.defenderKind === 'siege') {
+    const defender = state.heroes[pending.defenderOwner];
+    if (winnerSide === 'attacker') {
+      attacker.army = survivingStacks.map((s) => ({ ...s }));
+      const defeatedValue = armyValue(pending.militia);
+      attacker.xp += Math.round(defeatedValue * XP_PER_ARMY_VALUE);
+      applyLevelUps(attacker);
+      // Loot (spec.md US-5) — never captures the Keep itself (no ownerId
+      // change, unchanged win condition; specs/003-siege-and-spells
+      // Non-goals).
+      for (const r of RESOURCES) {
+        const looted = Math.floor((defender.resources[r] || 0) * SIEGE_LOOT_FRACTION);
+        defender.resources[r] -= looted;
+        attacker.resources[r] += looted;
+      }
+      attacker.position = pending.hex;
+    } else {
+      // Militia repelled the siege — survivors return to the defender's
+      // pool (they were only drafted, never lost), attacker is wiped and
+      // respawns exactly like losing any other neutral fight (US-6).
+      returnMilitiaSurvivors(defender, survivingStacks);
+      attacker.position = homeKeep(attackerOwner);
+      attacker.army = getHeroType(attacker.heroTypeId).startingArmy.map((s) => ({ ...s }));
+      attacker.movementLeft = 0;
+      attacker.mana = attacker.manaMax;
+    }
+    state.phase = 'playing';
+    state.pendingBattle = null;
+    return;
+  }
+
   // Neutral guard/monster fight.
-  const hero = state.heroes[attackerOwner];
   const occupant = getObject(state, pending.hex);
 
   if (winnerSide === 'attacker') {
-    hero.army = survivingStacks.map((s) => ({ ...s }));
+    attacker.army = survivingStacks.map((s) => ({ ...s }));
     const defeatedValue = armyValue(occupant ? [occupant.guard] : []);
-    hero.xp += Math.round(defeatedValue * XP_PER_ARMY_VALUE);
-    applyLevelUps(hero);
+    attacker.xp += Math.round(defeatedValue * XP_PER_ARMY_VALUE);
+    applyLevelUps(attacker);
 
     if (occupant) {
       if (occupant.type === 'monster') {
@@ -242,15 +312,16 @@ export function resolveBattleOutcome(state, winnerSide, survivingStacks) {
         occupant.guard = null;
       }
     }
-    hero.position = pending.hex;
+    attacker.position = pending.hex;
     if (occupant && occupant.type !== 'monster') resolveOccupancy(state, attackerOwner, pending.hex);
   } else {
     // Hero's whole army was wiped by the neutral guard — respawn at home
     // (spec.md US-6), guard survives with updated (possibly reduced) count.
     if (occupant) occupant.guard = survivingStacks[0] ? { ...survivingStacks[0] } : null;
-    hero.position = homeKeep(attackerOwner);
-    hero.army = getHeroType(hero.heroTypeId).startingArmy.map((s) => ({ ...s }));
-    hero.movementLeft = 0;
+    attacker.position = homeKeep(attackerOwner);
+    attacker.army = getHeroType(attacker.heroTypeId).startingArmy.map((s) => ({ ...s }));
+    attacker.movementLeft = 0;
+    attacker.mana = attacker.manaMax;
   }
 
   state.phase = 'playing';
@@ -265,41 +336,40 @@ function applyLevelUps(hero) {
   }
 }
 
+// Dwelling scoring is sourced from the hero's Castle (unique unlocked
+// creature types), not owned map hexes, since a tier can now be unlocked
+// by building it — see specs/002-castle-creatures/plan.md Decision #5.
 export function kingdomScore(state, owner) {
   let score = 0;
   for (const occupant of state.hexes.values()) {
-    if (occupant.ownerId !== owner) continue;
-    if (occupant.type === 'mine') score += 10;
-    else if (occupant.type === 'dwelling') score += 15;
+    if (occupant.ownerId === owner && occupant.type === 'mine') score += 10;
   }
   const hero = state.heroes[owner];
+  score += hero.castle.unlocked.size * 15;
   for (const stack of hero.army) {
     score += stack.count * getCreature(stack.creatureTypeId).tier;
   }
   return score;
 }
 
-// Advance to the next day: refill movement, pay out mine/dwelling income,
-// check the Day-limit/Kingdom-Score fallback win condition (spec.md US-6,
-// plan.md Decision #4). Only valid outside of an active battle.
+// Advance to the next day: refill movement, pay out mine income and
+// Castle pool growth, check the Day-limit/Kingdom-Score fallback win
+// condition (spec.md US-6, plan.md Decision #4). Only valid outside of an
+// active battle.
 export function endDay(state) {
   if (state.phase !== 'playing') return false;
 
   for (const occupant of state.hexes.values()) {
-    if (!occupant.ownerId) continue;
-    const hero = state.heroes[occupant.ownerId];
-    if (occupant.type === 'mine') {
-      hero.resources[occupant.resource] += MINE_YIELD[occupant.resource];
-    } else if (occupant.type === 'dwelling') {
-      const creature = getCreature(occupant.creatureTypeId);
-      const max = creature.growthPerDay * DWELLING_MAX_GARRISON_MULT;
-      occupant.garrison = Math.min(max, occupant.garrison + creature.growthPerDay);
-    }
+    if (!occupant.ownerId || occupant.type !== 'mine') continue;
+    state.heroes[occupant.ownerId].resources[occupant.resource] += MINE_YIELD[occupant.resource];
   }
 
   state.day += 1;
   for (const owner of ['player', 'ai']) {
-    state.heroes[owner].movementLeft = state.heroes[owner].movementMax;
+    const hero = state.heroes[owner];
+    hero.movementLeft = hero.movementMax;
+    hero.mana = hero.manaMax;
+    accrueGrowth(hero);
   }
 
   if (state.day > state.dayLimit) {
