@@ -31,12 +31,18 @@ export const RECRUIT_COST = {
   dragon: { gold: 3000, gems: 2, sulfur: 2, mercury: 2 },
 };
 
+// wood/ore figures sized against MINE_YIELD (10/day each) so tiers 1-5
+// are affordable in roughly 5-20 days from a single captured mine of that
+// type, leaving real time left in the 30-day game to actually use what
+// got built — they used to take 100-600 days at the old 2/day yield.
+// Tiers 6-10's gold/crystal/mercury/sulfur/gems figures were already
+// proportionate to their yields and are unchanged.
 export const BUILD_COST = {
-  peasant: { wood: 200 },
-  pikeman: { wood: 400, ore: 200 },
-  archer: { wood: 800, ore: 400 },
-  wolf: { ore: 1200 },
-  orc: { ore: 1500, crystal: 4 },
+  peasant: { wood: 50 },
+  pikeman: { wood: 80, ore: 60 },
+  archer: { wood: 150, ore: 100 },
+  wolf: { ore: 150 },
+  orc: { ore: 200, crystal: 4 },
   griffin: { gold: 2000, crystal: 8 },
   ogre: { gold: 2500, mercury: 8 },
   skeleton: { gold: 1800, sulfur: 6 },

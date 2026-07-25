@@ -188,8 +188,8 @@ function castleFixture(resources) {
 }
 
 test('chooseAiCastleActions builds the cheapest affordable not-yet-unlocked tier, at most one per day', () => {
-  // Affords peasant (200 wood), pikeman (400 wood + 200 ore), and archer
-  // (800 wood + 400 ore) all at once — only the lowest tier should build.
+  // Affords peasant, pikeman, and archer all at once (see BUILD_COST) —
+  // only the lowest tier should build.
   const state = castleFixture({ wood: 5000, ore: 5000 });
   chooseAiCastleActions(state, 'ai');
   const hero = state.heroes.ai;
