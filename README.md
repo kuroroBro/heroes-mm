@@ -76,6 +76,18 @@ hand-authored flat SVG placeholders (generated via
 ever means changing the lookup table in `js/sprites.js` — no engine or UI
 changes needed (spec.md FR-3).
 
+`specs/005-castle-factions` added 18 more creatures (28 total, across 4
+factions) plus a 4th hero token. The Enkantos faction's 7 creatures are
+real art too — copied directly from `pinoy-board`'s own
+`boardSprites/enemy/` (Duwende, Santilmo, Manananggal, Tikbalang, Aswang,
+Kapre, Bakunawa), same reuse pattern as the hex ground textures above and
+confirmed to already match this project's full-body painterly style. The
+other 18 new sprites (11 creatures + the Enkantos hero token) are flat
+placeholder SVGs for now — the locally installed Codex CLI was too old
+for the `image-gen` skill's backend model when this feature shipped;
+re-running generation for them later is a `js/sprites.js` path change
+only, same as any other placeholder-to-real-art swap.
+
 ## Deploying to GitHub Pages
 
 The site is fully static — no build step.
@@ -108,10 +120,10 @@ v1's "no magic" and 002's "no castle combat" Non-goals, and
 [`specs/004-siege-battlefield/`](specs/004-siege-battlefield/) for the
 siege-specific wall/gate battlefield obstacles (destructible walls, one
 open gate, attacker catapult) shipped on top of that, and
-[`specs/005-castle-factions/`](specs/005-castle-factions/) (design only —
-not yet implemented) for splitting the single shared 10-creature roster
-into 4 factions (Human, Orc, Undead, Enkantos) of 7 creatures each,
-chosen at setup in place of the current hero-type pick.
+[`specs/005-castle-factions/`](specs/005-castle-factions/) for splitting
+the single shared 10-creature roster into 4 factions (Human, Orc, Undead,
+Enkantos) of 7 creatures each, chosen at setup in place of the old
+hero-type pick.
 
 Unlike this workspace's other party games, this one has no networking
 yet — v1 is a single-device hero-vs-AI game. Multiplayer, following the

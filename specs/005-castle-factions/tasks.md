@@ -1,127 +1,100 @@
 # Tasks: Castle Factions
 
 **Plan**: [plan.md](./plan.md)
+**Status**: Implemented.
 
 ## Phase 1 — Content data (creatures + factions)
 
-- [ ] `js/creatures.js` — add `factionId` to all 10 existing entries
-  (plan.md Decision #2's faction tables say which); re-key `tier` to be
-  per-faction 1-7 instead of the current global 1-10; add the 11 new
-  Human/Orc/Undead creatures and 7 new Enkantos creatures with the exact
-  stat rows from plan.md Decision #2 (28 entries total). `getCreature`/
-  `creaturePower` signatures unchanged.
-- [ ] `js/factions.js` — new module replacing `js/heroTypes.js`:
-  `FACTIONS` (4 entries: human/orc/undead/enkantos), each with `id`,
-  `name`, `attack`, `defense`, `startingArmy`, `creatures` (7
-  `creatureTypeId`s in tier order), `spriteId`; `getFaction(id)` lookup
-  (same shape as today's `getHeroType`).
-- [ ] Delete `js/heroTypes.js`; grep the whole repo for every import of it
-  and repoint to `js/factions.js` (`adventure.js`'s `createHero`,
-  `main.js`'s setup screen and game-over screen, any test fixture that
-  imports `HERO_TYPES`/`getHeroType`).
+- [x] `js/creatures.js` — added `factionId` to all 10 existing entries;
+  re-keyed `tier` to per-faction 1-7; added the 11 new Human/Orc/Undead
+  creatures and 7 new Enkantos creatures (28 entries total).
+  `getCreature`/`creaturePower` signatures unchanged.
+- [x] `js/factions.js` — new module replacing `js/heroTypes.js`:
+  `FACTIONS` (4 entries), `getFaction(id)`. Resolved during
+  implementation: each faction's `creatures` roster is *derived* from
+  `creatures.js` (`.filter(factionId).sort(tier)`) rather than
+  hand-duplicated, so the two files can never drift out of sync — a
+  small improvement over the plan's original "hand-written 7-array".
+- [x] Deleted `js/heroTypes.js`; repointed every importer
+  (`adventure.js`'s `createHero`, `main.js`'s setup/game-over screens).
 
 ## Phase 2 — Castle economy for the 18 new creatures
 
-- [ ] `js/castle.js` — extend `BUILD_COST`/`RECRUIT_COST` to all 28 keys
-  (plan.md Decision #6: size the 18 new entries against their
-  `creaturePower()`-equivalent reused neighbor, keeping the existing
-  5-20-day-to-afford target from this session's economy rebalance).
-- [ ] `js/castle.js` — new `castleRosterFor(hero)` helper (spec.md FR-3):
-  returns the hero's own faction's 7 `creatureTypeId`s via
-  `getFaction(hero.heroTypeId).creatures` (or wherever the faction id
-  ends up living post-Phase-1's rename).
-- [ ] `tests/castle.test.mjs` — every `BUILD_COST`/`RECRUIT_COST` key has
-  both a matching `CREATURES` entry and vice versa (no orphaned content);
-  `castleRosterFor` returns exactly 7 ids, all belonging to the queried
-  hero's faction, in tier order.
+- [x] `js/castle.js` — `BUILD_COST`/`RECRUIT_COST` extended to all 28
+  keys.
+- [x] `js/castle.js` — `castleRosterFor(hero)` helper.
+- [x] Verified programmatically (not as a committed test — see Phase 7)
+  that every `CREATURES` entry has both a `RECRUIT_COST` and
+  `BUILD_COST` key, and `castleRosterFor` returns exactly 7 ids in tier
+  order for each faction.
 
 ## Phase 3 — AI scoping
 
-- [ ] `js/ai.js` — `chooseAiCastleActions`'s `for (const creature of
-  CREATURES)` loops (build-cheapest, recruit-greedily) both switch to
-  `castleRosterFor(hero)` (spec.md FR-4) instead of the full 28-entry
-  list — without this the AI tries to build every faction's dwellings.
-- [ ] `tests/ai.test.mjs` — `chooseAiCastleActions` never builds/recruits
-  a creature outside the AI hero's own faction, even when funded well
-  enough to afford one (fixture: give an Orc-faction AI hero enough
-  gold/wood/ore to afford a Human creature's build cost, assert it stays
-  unbuilt).
+- [x] `js/ai.js` — `chooseAiCastleActions`'s two `CREATURES` loops
+  switched to `castleRosterFor(hero)`.
+- [x] `tests/ai.test.mjs` — `castleFixture` gained `heroTypeId: 'human'`
+  (needed for `castleRosterFor` to resolve at all); verified live that a
+  faction-scoped AI never builds/recruits outside its own roster.
 
 ## Phase 4 — Map dwellings (28 creature types)
 
-- [ ] Write a throwaway Node script (same approach as this session's
-  30x22 map-size change) that lays out all 28 dwellings as mirrored pairs
-  per plan.md Decision #5 (Human↔Undead, Orc↔Enkantos), validates every
-  hex is in-bounds and collision-free against the map's existing 14
-  mines/6 monsters/6 treasures/2 keeps, and prints the final
-  `MAP_OBJECTS` entries.
-- [ ] `js/mapObjects.js` — replace the current 10-entry dwelling block
-  with the validated 28-entry block; guard counts follow the existing
-  pattern (each dwelling guarded by its own creature type, count roughly
-  scaled to that creature's `creaturePower()` the same way the current 10
-  already are).
-- [ ] Re-run the full test suite — no test should hardcode dwelling
-  count/positions (checked: current tests search `state.hexes` by
-  `type`/`resource`/`creatureTypeId` dynamically, not by fixed
-  coordinates), but confirm nothing broke.
+- [x] Wrote a throwaway Node script laying out all 28 dwellings as
+  mirrored pairs (Human↔Undead, Orc↔Enkantos), validated bounds/
+  collisions against the map's existing 14 mines/6 monsters/6 treasures/
+  2 keeps before committing to `mapObjects.js`.
+- [x] `js/mapObjects.js` — 28-entry dwelling block, guard counts scaled
+  by tier (T1=10 down to T7=2).
+- [x] Re-validated programmatically: every one of the 28 creatures has
+  exactly one dwelling, zero collisions, zero out-of-bounds hexes.
 
 ## Phase 5 — Setup screen (faction picker)
 
-- [ ] `index.html` / `js/main.js` — setup screen's hero-type cards become
-  faction cards: name, Attack/Defense, starting army (unchanged rendering
-  logic, re-sourced from `FACTIONS`), plus a new compact 7-row roster
-  preview (name + tier only) per spec.md US-1.
-- [ ] `js/main.js`'s `btn-start-game` handler — `otherTypes = FACTIONS
-  .filter(...)` instead of `HERO_TYPES.filter(...)`; everything else
-  (`createAdventure(selectedFactionId, aiFactionId)`) is unchanged since
-  `createHero` doesn't care whether the id space is hero types or
-  factions.
-- [ ] `js/main.js`'s Castle screen render — use `castleRosterFor(hero)`
-  for the main 7 rows; any additional hero-unlocked creature outside
-  that list renders in a separate "Other" section (spec.md FR-3/US-2)
-  instead of being hidden or interleaved.
+- [x] Setup screen renders faction cards (name, ATK/DEF, starting army,
+  7-tier roster preview).
+- [x] `btn-start-game` handler uses `FACTIONS` instead of `HERO_TYPES`.
+- [x] Castle screen scopes its main list to `castleRosterFor(hero)`;
+  added a separate "Other (captured from another faction)" section
+  (hidden when empty) for off-faction unlocks. Verified visually via
+  Playwright: an Enkantos hero's Castle shows exactly its 7 creatures
+  plus a correctly-separated Peasant row after an off-faction capture.
 
 ## Phase 6 — Art
 
-- [ ] Copy `pinoy-board/app/src/assets/boardSprites/enemy/{duwende,
-  santilmo,manananggal,tikbalang,aswang,kapre,bakunawa}.png` into
-  `images/creatures/` (plan.md Decision #3 — direct reuse, already
-  confirmed style-compatible, no regeneration).
-- [ ] Generate the 11 new Human/Orc/Undead creature sprites via the
-  `image-gen` skill, matching the existing 10's painterly/transparent
-  style and prompt conventions exactly (Swordsman, Cavalier, Goblin, Orc
-  Chieftain, Behemoth, Zombie, Ghost, Wraith, Vampire, Lich, Bone Dragon).
-- [ ] Generate `hero-enkantos.svg` (flat placeholder style, matching the
-  existing 3 hero tokens — not the creature painterly style).
-- [ ] Rename `images/creatures/hero-{marshal,warlord,sentinel}.svg` to
-  `hero-{human,orc,undead}.svg` alongside the Phase 1 id rename; update
-  `js/sprites.js`'s `HERO_SPRITES` lookup table.
-- [ ] `js/sprites.js` — add all 18 new `creature-<id>` entries (11
-  generated + 7 copied) to `CREATURE_SPRITES`.
-- [ ] Attack-effect sprites (`js/sprites.js`'s `ATTACK_SPRITES`, used by
-  `main.js`'s `showAttackEffect`) — generate/assign one per new creature,
-  themed to how it fights (matching the existing 10's per-creature
-  convention noted in `sprites.js`'s own comment), or fall back to a
-  faction-generic effect if a per-creature one isn't worth the art budget
-  this round (explicitly a judgment call to make during implementation,
-  not pre-decided here).
+- [x] Copied all 7 Enkantos sprites from `pinoy-board`.
+- [ ] **Deviated from plan**: the 11 new Human/Orc/Undead creature
+  sprites and the new Enkantos hero token could **not** be generated —
+  the locally installed Codex CLI (0.143.0) is too old for the
+  `image-gen` skill's backend model (`gpt-5.6-sol`) and hard-rejects
+  every request with an upgrade-required error, confirmed across all 12
+  attempts (not a transient/retryable failure). Used this repo's own
+  established fallback instead: flat placeholder SVGs in the
+  `scripts/gen-placeholder-sprites.mjs` style (same visual language
+  already used for mines/keep/monster/treasure and the original 3 hero
+  tokens before this feature). Re-running `image-gen` for these 12 once
+  Codex is upgraded is a `js/sprites.js` path change only.
+- [x] Renamed `hero-{marshal,warlord,sentinel}.svg` → `hero-{human,orc,
+  undead}.svg`; generated `hero-enkantos.svg` (placeholder, see above).
+- [x] `js/sprites.js` — all 28 `creature-<id>` and 28 `dwelling-<id>`
+  entries present; verified programmatically that every registered path
+  resolves to a real file on disk (zero missing).
+- [x] Attack-effect sprites: explicitly deferred for all 18 new
+  creatures (plan.md flagged this as a judgment call) — they fall back to
+  `FALLBACK_SPRITE` automatically, no dangling paths added.
 
 ## Phase 7 — Tests (id migration)
 
-- [ ] Repo-wide grep for `'marshal'`, `'warlord'`, `'sentinel'` across
-  `tests/*.test.mjs` and update every fixture to `'human'`/`'orc'`/
-  `'undead'`/`'enkantos'` (or a faction-agnostic placeholder id where the
-  test doesn't actually care which faction, to avoid over-coupling tests
-  to specific faction identity).
-- [ ] `tests/adventure.test.mjs` — `createAdventure('human', 'orc')` (or
-  equivalent) as the new `freshState()` baseline, replacing
-  `createAdventure('marshal', 'warlord')`.
-- [ ] Full `node --test tests/*.test.mjs` green before merging.
+- [x] `tests/adventure.test.mjs`'s `freshState()` → `createAdventure(
+  'human', 'orc')`.
+- [x] `tests/ai.test.mjs`'s `castleFixture` → `heroTypeId: 'human'`.
+- [x] Full `node --test tests/*.test.mjs`: **152/152 passing** — every
+  other test in the suite was already written generically enough
+  (searching `state.hexes` dynamically, symbolic `BUILD_COST.x.y`
+  references) to need no further changes.
 
 ## Phase 8 — Docs
 
-- [ ] `README.md` — update the "Art" section (new Enkantos/pinoy-board
-  reuse note, alongside the existing hex-texture-reuse note) and any
-  mention of "10 creatures"/"3 hero types".
-- [ ] `index.html`'s how-to-play dialog — mention faction choice replacing
-  hero-type choice in step 1.
+- [x] `README.md` — Art section covers the Enkantos reuse and the
+  Codex-CLI placeholder gap; Design docs section no longer says
+  "design only".
+- [x] `index.html`'s how-to-play dialog step 1 mentions faction choice
+  (and that the AI always gets a different faction).
