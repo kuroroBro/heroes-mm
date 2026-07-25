@@ -1216,7 +1216,20 @@ function renderBattleMap(state) {
   // would otherwise cover a neighboring stack's own ring/count label if
   // interleaved single-pass — this guarantees rings/labels always render
   // above every sprite, not just their own.
-  const liveStacks = state.stacks.filter((s) => s.count > 0 && positions.get(key(s.position)));
+  //
+  // Sprite draw order is also depth-sorted by screen y (painter's
+  // algorithm), not left as raw attacker-then-defender array order —
+  // otherwise whichever side happens to come second in state.stacks
+  // always buries the other's sprite whenever stacks end up crowded
+  // together (e.g. several stacks converging on the same corner after a
+  // few rounds of movement), regardless of which one is actually
+  // "in front" on screen. Sorting by y means the stack positioned lower
+  // on the map (closer to the viewer) is the one drawn on top, so
+  // overlap reads as normal depth rather than an arbitrary stack going
+  // missing.
+  const liveStacks = state.stacks
+    .filter((s) => s.count > 0 && positions.get(key(s.position)))
+    .sort((a, b) => positions.get(key(a.position)).y - positions.get(key(b.position)).y);
 
   for (const stack of liveStacks) {
     const pos = positions.get(key(stack.position));
