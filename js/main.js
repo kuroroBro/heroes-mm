@@ -5,7 +5,7 @@ import { FACTIONS, getFaction } from './factions.js';
 import { spritePath } from './sprites.js';
 import {
   createAdventure, moveHero, endDay, kingdomScore, getPendingBattleArmies,
-  resolveBattleOutcome, planMoveTowards, isSiegeBattle,
+  resolveBattleOutcome, planMoveTowards, isSiegeBattle, HERO_DEFEATS_TO_LOSE,
 } from './adventure.js';
 import {
   createBattle, getStack, moveStack, attackStack, waitStack, defendStack,
@@ -195,6 +195,8 @@ function renderAdventure() {
   $('adv-moves').textContent = state.heroes.player.movementLeft;
   $('adv-hero-name').textContent = getFaction(state.heroes.player.heroTypeId).name;
   $('adv-hero-level').textContent = state.heroes.player.level;
+  $('adv-defeats').textContent =
+    `${state.heroes.ai.defeatsSuffered}-${state.heroes.player.defeatsSuffered} / ${HERO_DEFEATS_TO_LOSE}`;
 
   renderAdventureMap();
   renderArmyList($('adv-army-list'), state.heroes.player.army);
@@ -1695,7 +1697,7 @@ function showGameOver() {
     title.textContent = `${who} win${state.winner === 'player' ? '' : 's'}!`;
   }
   reason.textContent = state.winReason === 'combat'
-    ? 'Decided by direct combat between the two heroes.'
+    ? `Decided by direct combat — the loser's hero was defeated ${HERO_DEFEATS_TO_LOSE} times.`
     : `Day ${state.dayLimit} reached — decided by Kingdom Score.`;
 
   const scores = $('gameover-scores');

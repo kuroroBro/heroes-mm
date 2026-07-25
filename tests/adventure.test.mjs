@@ -5,6 +5,7 @@ import {
   createAdventure, moveHero, endDay, kingdomScore, getPendingBattleArmies,
   resolveBattleOutcome, planMoveTowards, MOVEMENT_PER_DAY, DAY_LIMIT,
   MANA_MAX, HOME_TURF_DEFENSE_BONUS, SIEGE_LOOT_FRACTION, isSiegeBattle,
+  HERO_DEFEATS_TO_LOSE,
 } from '../js/adventure.js';
 import { KEEP_PLAYER, KEEP_AI } from '../js/mapObjects.js';
 import { unlock, learnSpell, recruitCreatures, maxRecruitable, buildDwelling } from '../js/castle.js';
@@ -309,17 +310,35 @@ test('resolveBattleOutcome: attacker loses to a neutral guard, respawns at home 
   assert.equal(mine.guard.count, 2); // guard took losses but survives
 });
 
-test('resolveBattleOutcome: hero-vs-hero battle ends the game immediately', () => {
+test('resolveBattleOutcome: losing a hero-vs-hero battle respawns the loser instead of ending the game, until their 3rd defeat', () => {
+  assert.equal(HERO_DEFEATS_TO_LOSE, 3);
   const state = freshState();
-  const aiPos = state.heroes.ai.position;
-  state.heroes.player.position = { q: aiPos.q - 1, r: aiPos.r };
-  moveHero(state, 'player', aiPos);
 
+  for (let defeatNum = 1; defeatNum < HERO_DEFEATS_TO_LOSE; defeatNum++) {
+    state.heroes.ai.position = KEEP_AI;
+    state.heroes.player.position = { q: KEEP_AI.q - 1, r: KEEP_AI.r };
+    state.heroes.player.movementLeft = MOVEMENT_PER_DAY;
+    moveHero(state, 'player', KEEP_AI);
+
+    resolveBattleOutcome(state, 'attacker', [{ creatureTypeId: 'pikeman', count: 4 }]);
+
+    assert.equal(state.phase, 'playing'); // game continues
+    assert.equal(state.winner, null);
+    assert.equal(state.heroes.ai.defeatsSuffered, defeatNum);
+    assert.deepEqual(state.heroes.ai.position, KEEP_AI); // respawned at home
+    assert.ok(state.heroes.ai.army.length > 0); // fresh starting army restored
+  }
+
+  // The (HERO_DEFEATS_TO_LOSE)th defeat actually ends the game.
+  state.heroes.player.position = { q: KEEP_AI.q - 1, r: KEEP_AI.r };
+  state.heroes.player.movementLeft = MOVEMENT_PER_DAY;
+  moveHero(state, 'player', KEEP_AI);
   resolveBattleOutcome(state, 'attacker', [{ creatureTypeId: 'pikeman', count: 4 }]);
 
   assert.equal(state.phase, 'gameover');
   assert.equal(state.winner, 'player');
   assert.equal(state.winReason, 'combat');
+  assert.equal(state.heroes.ai.defeatsSuffered, HERO_DEFEATS_TO_LOSE);
 });
 
 test('endDay refills movement and pays out owned mine income', () => {

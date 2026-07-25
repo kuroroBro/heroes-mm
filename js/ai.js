@@ -15,11 +15,12 @@ import { SPELLS } from './spells.js';
 
 const WINNABLE_POWER_MARGIN = 1.2;
 // Losing a guarded mine/dwelling fight just costs the AI a respawn — losing
-// a hero-vs-hero fight ends the whole game on the spot (adventure.js's
-// resolveBattleOutcome sets phase 'gameover' the instant defenderKind is
-// 'hero'). That's a much higher-stakes bet than a routine guard fight, so
-// engaging the enemy hero directly needs a clearer advantage, not just the
-// same margin as "can probably beat this pile of peasants".
+// a hero-vs-hero fight moves the AI one step closer to losing the whole
+// game outright (adventure.js's resolveBattleOutcome ends the game once a
+// hero has been defeated HERO_DEFEATS_TO_LOSE times). That's a higher-
+// stakes bet than a routine guard fight, so engaging the enemy hero
+// directly needs a clearer advantage, not just the same margin as "can
+// probably beat this pile of peasants".
 const HERO_ENGAGE_POWER_MARGIN = 1.8;
 
 function armyPower(army) {

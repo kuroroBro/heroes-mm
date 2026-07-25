@@ -78,8 +78,12 @@
         <li>Click <strong>End Day</strong> when you're done moving — the AI
           takes its turn, then a new day begins.</li>
         <li><strong>Defeat the enemy hero's army</strong> in direct combat
-          to win instantly. Otherwise, the game ends at Day 30 and whoever
-          has the higher Kingdom Score (mines, creature tiers, army) wins.</li>
+          3 times to win (tracked by the ⚔️ pill). Each of the first 2
+          defeats just sends that hero home to respawn with a fresh
+          starting army, same as losing to a neutral guard — no permanent
+          loss until the 3rd. Otherwise, the game ends at Day 30 and
+          whoever has the higher Kingdom Score (mines, creature tiers,
+          army) wins.</li>
       </ol>
       <button id="btn-close-how-to-play" class="btn btn-primary btn-big">Got it!</button>
     </div>
@@ -135,6 +139,7 @@
       <span class="pill">Day <span id="adv-day">1</span> / <span id="adv-day-limit">30</span></span>
       <span class="pill">Moves left: <span id="adv-moves">8</span></span>
       <span class="pill hero-pill-player"><span id="adv-hero-name">Marshal</span> Lv<span id="adv-hero-level">1</span></span>
+      <span class="pill" title="Enemy hero defeats - your hero defeats, out of the defeats needed to win">⚔️ <span id="adv-defeats">0-0 / 3</span></span>
       <button id="btn-open-castle" class="btn btn-secondary btn-small">🏰 Castle</button>
       <button id="btn-end-day" class="btn btn-primary btn-small">🌙 End Day</button>
     </header>

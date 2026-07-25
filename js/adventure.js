@@ -19,6 +19,7 @@ export const HOME_TURF_DEFENSE_BONUS = 2; // specs/003-siege-and-spells US-6
 export const SIEGE_LOOT_FRACTION = 0.4; // specs/003-siege-and-spells US-5
 const XP_PER_LEVEL = 1000;
 const XP_PER_ARMY_VALUE = 2; // XP gained = defeated army value * this multiplier
+export const HERO_DEFEATS_TO_LOSE = 3; // a hero must lose 3 hero-vs-hero battles before the game ends
 
 function homeKeep(owner) {
   return owner === 'player' ? KEEP_PLAYER : KEEP_AI;
@@ -46,6 +47,7 @@ function createHero(owner, heroTypeId) {
     mana: 0,
     manaMax: MANA_MAX,
     spellbook: new Set(),
+    defeatsSuffered: 0,
   };
 }
 
@@ -262,10 +264,27 @@ export function resolveBattleOutcome(state, winnerSide, survivingStacks, remaini
     const defender = state.heroes[defenderOwner];
     if (remainingMana.defender != null) defender.mana = remainingMana.defender;
     const winnerOwner = winnerSide === 'attacker' ? attackerOwner : defenderOwner;
+    const loserOwner = otherOwner(winnerOwner);
+    const loser = state.heroes[loserOwner];
     state.heroes[winnerOwner].army = survivingStacks.map((s) => ({ ...s }));
-    state.phase = 'gameover';
-    state.winner = winnerOwner;
-    state.winReason = 'combat';
+    loser.defeatsSuffered += 1;
+
+    if (loser.defeatsSuffered >= HERO_DEFEATS_TO_LOSE) {
+      state.phase = 'gameover';
+      state.winner = winnerOwner;
+      state.winReason = 'combat';
+      state.pendingBattle = null;
+      return;
+    }
+
+    // Not yet the loser's 3rd defeat — same respawn treatment as losing to
+    // a neutral guard (US-6): fresh starting army and full mana at home,
+    // and the adventure continues rather than ending outright.
+    loser.position = homeKeep(loserOwner);
+    loser.army = getFaction(loser.heroTypeId).startingArmy.map((s) => ({ ...s }));
+    loser.movementLeft = 0;
+    loser.mana = loser.manaMax;
+    state.phase = 'playing';
     state.pendingBattle = null;
     return;
   }
