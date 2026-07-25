@@ -75,6 +75,23 @@ test('aiSelectTarget refuses a guarded target it cannot beat, and refuses to fal
   assert.equal(target, null);
 });
 
+test('aiSelectTarget refuses to engage the enemy hero at a power ratio that would win a routine guard fight', () => {
+  // pikeman power = 3 + 4 + 8*0.1 = 7.8. Enemy (default fixture): 5
+  // pikeman = 39 power. AI: 7 pikeman = 54.6 power -> ratio 1.4: clears
+  // WINNABLE_POWER_MARGIN (1.2, what a guarded mine/dwelling needs) but
+  // not HERO_ENGAGE_POWER_MARGIN (1.8) -- losing to the enemy hero ends
+  // the game outright, so this needs a clearer edge than "can probably
+  // beat some guards".
+  const enemyPos = { q: 9, r: 9 };
+  const state = adventureFixture({
+    army: [{ creatureTypeId: 'pikeman', count: 7 }],
+    enemyPos,
+    hexes: [],
+  });
+  const target = aiSelectTarget(state, 'ai');
+  assert.equal(target, null);
+});
+
 test('aiSelectTarget falls back to the enemy hero position when the map has nothing else and it can win', () => {
   const enemyPos = { q: 7, r: 7 };
   const state = adventureFixture({

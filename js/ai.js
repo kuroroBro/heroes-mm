@@ -14,6 +14,13 @@ import { canCastSpell, isObstacleHex } from './battle.js';
 import { SPELLS } from './spells.js';
 
 const WINNABLE_POWER_MARGIN = 1.2;
+// Losing a guarded mine/dwelling fight just costs the AI a respawn — losing
+// a hero-vs-hero fight ends the whole game on the spot (adventure.js's
+// resolveBattleOutcome sets phase 'gameover' the instant defenderKind is
+// 'hero'). That's a much higher-stakes bet than a routine guard fight, so
+// engaging the enemy hero directly needs a clearer advantage, not just the
+// same margin as "can probably beat this pile of peasants".
+const HERO_ENGAGE_POWER_MARGIN = 1.8;
 
 function armyPower(army) {
   return army.reduce((total, s) => total + creaturePower(getCreature(s.creatureTypeId)) * s.count, 0);
@@ -32,18 +39,18 @@ function hexFromKey(k) {
 // Adventure-map targeting (plan.md Decision #5, spec.md US-3): nearest
 // reachable unguarded mine/dwelling not already owned by `owner`; else
 // nearest reachable guarded mine/dwelling/monster the owner's army can
-// likely beat; else — specs/003-siege-and-spells Decision #8 — the
-// enemy's Keep, if reachable and their hero isn't standing there (that's
-// just the plain enemy-hero fallback below, not a raid) — an away hero's
-// Keep has no defense of its own, so this is always a free raid, no power
-// check needed; else the enemy hero directly, but ONLY if this army can
-// likely beat theirs (same WINNABLE_POWER_MARGIN gate as a guarded mine/
-// dwelling) — walking straight into a stronger hero used to be the
-// unconditional last resort here, which is exactly the "always attacks
-// even when weaker" behavior this margin now prevents. Returns a
-// HexCoord, or null if there is truly nothing worth doing this day (map
-// fully claimed and the enemy hero can't be beaten) — main.js just ends
-// the AI's day when this is null, same as running out of movement.
+// likely beat (WINNABLE_POWER_MARGIN); else — specs/003-siege-and-spells
+// Decision #8 — the enemy's Keep, if reachable and their hero isn't
+// standing there (that's just the plain enemy-hero fallback below, not a
+// raid) — an away hero's Keep has no defense of its own, so this is
+// always a free raid, no power check needed; else the enemy hero
+// directly, but ONLY with a much clearer advantage than a routine guard
+// fight (HERO_ENGAGE_POWER_MARGIN, not WINNABLE_POWER_MARGIN) since
+// losing this one — unlike every other fight above — ends the game on
+// the spot. Returns a HexCoord, or null if there is truly nothing worth
+// doing this day (map fully claimed and the enemy hero can't be beaten
+// confidently enough) — main.js just ends the AI's day when this is
+// null, same as running out of movement.
 export function aiSelectTarget(state, owner) {
   const hero = state.heroes[owner];
   const power = armyPower(hero.army);
@@ -93,7 +100,7 @@ export function aiSelectTarget(state, owner) {
   if (bestFree) return bestFree;
   if (bestWinnable) return bestWinnable;
   if (siegeTarget) return siegeTarget;
-  if (power >= enemyPower * WINNABLE_POWER_MARGIN) return enemyPos;
+  if (power >= enemyPower * HERO_ENGAGE_POWER_MARGIN) return enemyPos;
   return null;
 }
 
