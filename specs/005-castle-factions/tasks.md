@@ -61,22 +61,23 @@
 ## Phase 6 — Art
 
 - [x] Copied all 7 Enkantos sprites from `pinoy-board`.
-- [ ] **Deviated from plan**: the 11 new Human/Orc/Undead creature
-  sprites and the new Enkantos hero token could **not** be generated —
-  the locally installed Codex CLI (0.143.0) is too old for the
-  `image-gen` skill's backend model (`gpt-5.6-sol`) and hard-rejects
-  every request with an upgrade-required error, confirmed across all 12
-  attempts (not a transient/retryable failure). Used this repo's own
-  established fallback instead: flat placeholder SVGs in the
-  `scripts/gen-placeholder-sprites.mjs` style (same visual language
-  already used for mines/keep/monster/treasure and the original 3 hero
-  tokens before this feature). Re-running `image-gen` for these 12 once
-  Codex is upgraded is a `js/sprites.js` path change only.
+- [x] The 11 new Human/Orc/Undead creature sprites and the new Enkantos
+  hero token initially could **not** be generated — the locally
+  installed Codex CLI (0.143.0) was too old for the `image-gen` skill's
+  backend model and hard-rejected every request (confirmed across 12
+  attempts, not transient). Fell back to flat placeholder SVGs
+  (`scripts/gen-placeholder-sprites.mjs` style) to ship a functional
+  feature. **Resolved**: Codex upgraded to 0.145.0, all 12 regenerated
+  as real full-body painterly PNGs with true alpha transparency,
+  matching the other 17 creatures exactly; placeholder SVGs removed.
 - [x] Renamed `hero-{marshal,warlord,sentinel}.svg` → `hero-{human,orc,
-  undead}.svg`; generated `hero-enkantos.svg` (placeholder, see above).
+  undead}.svg`; generated `hero-enkantos.png` (real art, see above).
 - [x] `js/sprites.js` — all 28 `creature-<id>` and 28 `dwelling-<id>`
   entries present; verified programmatically that every registered path
-  resolves to a real file on disk (zero missing).
+  resolves to a real file on disk (zero missing). All 28 `creature-<id>`
+  are now real art (11 generated + 7 pinoy-board + 10 pre-existing); the
+  18 new `dwelling-<id>` icons remain flat placeholders — regenerating
+  those wasn't part of the Codex-upgrade retry and is still open.
 - [x] Attack-effect sprites: explicitly deferred for all 18 new
   creatures (plan.md flagged this as a judgment call) — they fall back to
   `FALLBACK_SPRITE` automatically, no dangling paths added.

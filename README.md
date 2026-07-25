@@ -77,16 +77,18 @@ ever means changing the lookup table in `js/sprites.js` — no engine or UI
 changes needed (spec.md FR-3).
 
 `specs/005-castle-factions` added 18 more creatures (28 total, across 4
-factions) plus a 4th hero token. The Enkantos faction's 7 creatures are
-real art too — copied directly from `pinoy-board`'s own
+factions) plus a 4th hero token — all real art. The Enkantos faction's 7
+creatures are copied directly from `pinoy-board`'s own
 `boardSprites/enemy/` (Duwende, Santilmo, Manananggal, Tikbalang, Aswang,
 Kapre, Bakunawa), same reuse pattern as the hex ground textures above and
 confirmed to already match this project's full-body painterly style. The
-other 18 new sprites (11 creatures + the Enkantos hero token) are flat
-placeholder SVGs for now — the locally installed Codex CLI was too old
-for the `image-gen` skill's backend model when this feature shipped;
-re-running generation for them later is a `js/sprites.js` path change
-only, same as any other placeholder-to-real-art swap.
+other 11 creatures and the Enkantos hero token were generated via
+`image-gen` (an initial pass hit a hard Codex CLI version mismatch and
+fell back to flat placeholder SVGs; a Codex upgrade resolved it and all
+12 were regenerated as real art). The 18 new dwelling map/Castle-screen
+icons are still flat placeholder SVGs — that wasn't part of the retry;
+swapping them in later is a `js/sprites.js` path change only, same as
+any other placeholder-to-real-art swap.
 
 ## Deploying to GitHub Pages
 
