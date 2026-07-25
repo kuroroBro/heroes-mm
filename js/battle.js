@@ -337,8 +337,12 @@ export function attackStack(state, attackerId, targetId) {
   applyDamage(target, damage);
   const targetDied = target.count <= 0;
 
+  // Gated on actual adjacency, not on the attacker being a ranged
+  // creature type — a ranged unit that attacks while standing right next
+  // to its target is just as retaliation-able as a melee one; it's only
+  // shooting from a real distance that a target can't strike back at.
   let retaliation = null;
-  if (!ranged && target.count > 0 && !target.hasRetaliatedThisRound) {
+  if (adjacent && target.count > 0 && !target.hasRetaliatedThisRound) {
     const retaliationDamage = computeDamage(target, attacker, state.rng);
     applyDamage(attacker, retaliationDamage);
     target.hasRetaliatedThisRound = true;

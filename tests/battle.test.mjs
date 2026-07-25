@@ -125,7 +125,7 @@ test('melee attack deals damage, reduces stack count, and triggers one retaliati
   assert.equal(updatedDefender.hasRetaliatedThisRound, true);
 });
 
-test('ranged attacker does not trigger retaliation even at range', () => {
+test('ranged attacker does not trigger retaliation when firing from a real distance', () => {
   const state = createBattle(
     [{ creatureTypeId: 'archer', count: 10 }],
     [{ creatureTypeId: 'peasant', count: 20 }],
@@ -139,6 +139,25 @@ test('ranged attacker does not trigger retaliation even at range', () => {
   attackStack(state, attacker.id, defender.id);
   const updatedAttacker = getStack(state, attacker.id);
   assert.equal(updatedAttacker.count, beforeAttackerCount); // no retaliation damage taken
+});
+
+test('ranged attacker DOES trigger retaliation when firing from an adjacent hex', () => {
+  const state = createBattle(
+    [{ creatureTypeId: 'archer', count: 10 }],
+    [{ creatureTypeId: 'peasant', count: 200 }], // enough HP pool to survive the hit and retaliate
+    { attack: 0, defense: 0 }, { attack: 0, defense: 0 },
+    rngZero,
+  );
+  const attacker = state.stacks.find((s) => s.side === 'attacker');
+  const defender = state.stacks.find((s) => s.side === 'defender');
+  defender.position = { q: attacker.position.q + 1, r: attacker.position.r };
+
+  const beforeAttackerCount = attacker.count;
+  attackStack(state, attacker.id, defender.id);
+  const updatedAttacker = getStack(state, attacker.id);
+  const updatedDefender = getStack(state, defender.id);
+  assert.ok(updatedAttacker.count < beforeAttackerCount); // took retaliation damage
+  assert.equal(updatedDefender.hasRetaliatedThisRound, true);
 });
 
 test('melee attack fails when the target is not adjacent', () => {
