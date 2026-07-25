@@ -109,7 +109,7 @@ export function castleRosterFor(hero) {
 }
 
 export function initCastle() {
-  return { unlocked: new Set(), pool: {} };
+  return { unlocked: new Set(), pool: {}, built: new Set() };
 }
 
 export function isUnlocked(hero, creatureTypeId) {
@@ -122,6 +122,21 @@ export function isUnlocked(hero, creatureTypeId) {
 export function unlock(hero, creatureTypeId) {
   hero.castle.unlocked.add(creatureTypeId);
   if (!(creatureTypeId in hero.castle.pool)) hero.castle.pool[creatureTypeId] = 0;
+}
+
+// A hero loses the ability to recruit a creature type once the map
+// dwelling it came from is captured by someone else — unless that hero
+// also separately paid to `buildDwelling` it, which is a permanent,
+// resource-bought unlock with no map hex behind it to lose. Called by
+// adventure.js's resolveOccupancy for the *previous* owner whenever a
+// dwelling's ownerId actually changes. Never touches the hero's `army`
+// (already-recruited creatures stay exactly where they are — see
+// tests/adventure.test.mjs's "a dwelling changing hands..." coverage);
+// this only revokes the *future* unlock/pool for that creature type.
+export function revokeCaptureUnlock(hero, creatureTypeId) {
+  if (hero.castle.built.has(creatureTypeId)) return; // built independently — keep it
+  hero.castle.unlocked.delete(creatureTypeId);
+  delete hero.castle.pool[creatureTypeId];
 }
 
 // Grows every unlocked tier's pool by its growthPerDay, capped at
@@ -156,6 +171,7 @@ export function buildDwelling(state, owner, creatureTypeId) {
   if (!canAffordBuild(hero, creatureTypeId)) return false;
   payCost(hero.resources, BUILD_COST[creatureTypeId], 1);
   unlock(hero, creatureTypeId);
+  hero.castle.built.add(creatureTypeId);
   return true;
 }
 

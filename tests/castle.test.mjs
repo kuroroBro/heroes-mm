@@ -4,7 +4,7 @@ import { emptyResourcePool } from '../js/resources.js';
 import {
   initCastle, isUnlocked, unlock, accrueGrowth, canAffordBuild, buildDwelling,
   maxRecruitable, canAffordRecruit, recruitCreatures, BUILD_COST, RECRUIT_COST,
-  knowsSpell, canAffordLearnSpell, learnSpell,
+  knowsSpell, canAffordLearnSpell, learnSpell, revokeCaptureUnlock,
 } from '../js/castle.js';
 import { SPELLS } from '../js/spells.js';
 
@@ -29,6 +29,26 @@ test('unlock is idempotent and initializes the pool at 0', () => {
   unlock(hero, 'peasant');
   assert.equal(isUnlocked(hero, 'peasant'), true);
   assert.equal(hero.castle.pool.peasant, 0);
+});
+
+test('revokeCaptureUnlock removes the unlock and pool for a captured-only creature', () => {
+  const hero = freshHero();
+  unlock(hero, 'archer');
+  hero.castle.pool.archer = 5;
+  revokeCaptureUnlock(hero, 'archer');
+  assert.equal(isUnlocked(hero, 'archer'), false);
+  assert.equal(hero.castle.pool.archer, undefined);
+});
+
+test('revokeCaptureUnlock is a no-op for a creature the hero also built independently', () => {
+  const hero = freshHero();
+  hero.resources.wood = 999999;
+  hero.resources.ore = 999999;
+  buildDwelling({ heroes: { player: hero } }, 'player', 'archer');
+  hero.castle.pool.archer = 5;
+  revokeCaptureUnlock(hero, 'archer');
+  assert.equal(isUnlocked(hero, 'archer'), true); // built, never revoked
+  assert.equal(hero.castle.pool.archer, 5);
 });
 
 test('accrueGrowth only grows unlocked tiers, capped at growthPerDay * 10', () => {

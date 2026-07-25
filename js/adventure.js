@@ -9,7 +9,7 @@ import { getCreature } from './creatures.js';
 import { RESOURCES, emptyResourcePool, MINE_YIELD, KEEP_GOLD_YIELD } from './resources.js';
 import { MAP_WIDTH, MAP_HEIGHT, MAP_OBJECTS, KEEP_PLAYER, KEEP_AI } from './mapObjects.js';
 import { MAX_ARMY_SLOTS, armyValue } from './army.js';
-import { initCastle, unlock, accrueGrowth } from './castle.js';
+import { initCastle, unlock, accrueGrowth, revokeCaptureUnlock } from './castle.js';
 
 export { MAX_ARMY_SLOTS };
 export const MOVEMENT_PER_DAY = 8;
@@ -100,8 +100,16 @@ function resolveOccupancy(state, owner, hex) {
   if (occupant.type === 'mine') {
     occupant.ownerId = owner;
   } else if (occupant.type === 'dwelling') {
+    const previousOwnerId = occupant.ownerId;
     occupant.ownerId = owner;
     unlock(hero, occupant.creatureTypeId);
+    // Losing this dwelling to someone else revokes the previous owner's
+    // ability to keep recruiting it — unless they separately built it at
+    // their own Castle (a permanent, resource-paid unlock with no map
+    // hex behind it to lose). Never touches their already-recruited army.
+    if (previousOwnerId && previousOwnerId !== owner) {
+      revokeCaptureUnlock(state.heroes[previousOwnerId], occupant.creatureTypeId);
+    }
   } else if (occupant.type === 'treasure') {
     hero.resources[occupant.resource] = (hero.resources[occupant.resource] || 0) + occupant.amount;
     state.hexes.delete(objKey);

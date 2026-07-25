@@ -7,7 +7,7 @@ import {
   MANA_MAX, HOME_TURF_DEFENSE_BONUS, SIEGE_LOOT_FRACTION, isSiegeBattle,
 } from '../js/adventure.js';
 import { KEEP_PLAYER, KEEP_AI } from '../js/mapObjects.js';
-import { unlock, learnSpell, recruitCreatures, maxRecruitable } from '../js/castle.js';
+import { unlock, learnSpell, recruitCreatures, maxRecruitable, buildDwelling } from '../js/castle.js';
 
 function freshState() {
   return createAdventure('human', 'orc');
@@ -211,6 +211,78 @@ test('a dwelling changing hands never touches the previous owner\'s already-recr
   assert.equal(state.heroes.ai.castle.unlocked.has('archer'), true); // AI gets its own fresh claim
   assert.equal(state.heroes.ai.castle.pool.archer, 0); // starts at 0, not inherited from the player
   assert.deepEqual(state.heroes.player.army, playerArmyBefore); // untouched
+});
+
+test('losing a captured-only dwelling to the enemy revokes the previous owner\'s ability to keep recruiting it', () => {
+  const state = freshState();
+  let archerDwellingHex = null;
+  for (const [k, obj] of state.hexes) {
+    if (obj.type === 'dwelling' && obj.creatureTypeId === 'archer') {
+      const [q, r] = k.split(',').map(Number);
+      archerDwellingHex = { q, r };
+    }
+  }
+  assert.ok(archerDwellingHex);
+
+  // Player captures it (unlock only, no build) and recruits some, leaving
+  // pool > 0 so there's something concrete to check gets cleared.
+  state.heroes.player.position = { q: archerDwellingHex.q - 1, r: archerDwellingHex.r };
+  moveHero(state, 'player', archerDwellingHex);
+  resolveBattleOutcome(state, 'attacker', [{ creatureTypeId: 'pikeman', count: 8 }]);
+  state.heroes.player.castle.pool.archer = 4;
+  const playerArmyBefore = JSON.parse(JSON.stringify(state.heroes.player.army));
+
+  // Player moves on; the AI later reaches the now-unguarded dwelling and
+  // takes it for itself.
+  state.heroes.player.position = KEEP_PLAYER;
+  const dwelling = state.hexes.get(key(archerDwellingHex));
+  dwelling.guard = null;
+  state.heroes.ai.position = { q: archerDwellingHex.q + 1, r: archerDwellingHex.r };
+  state.heroes.ai.movementLeft = MOVEMENT_PER_DAY;
+  moveHero(state, 'ai', archerDwellingHex);
+
+  assert.equal(dwelling.ownerId, 'ai');
+  assert.equal(state.heroes.player.castle.unlocked.has('archer'), false); // revoked
+  assert.equal(state.heroes.player.castle.pool.archer, undefined); // cleared
+  assert.deepEqual(state.heroes.player.army, playerArmyBefore); // already-recruited stack untouched
+});
+
+test('a hero who built a creature type before ever capturing its dwelling keeps the unlock after losing that dwelling', () => {
+  const state = freshState();
+  let archerDwellingHex = null;
+  for (const [k, obj] of state.hexes) {
+    if (obj.type === 'dwelling' && obj.creatureTypeId === 'archer') {
+      const [q, r] = k.split(',').map(Number);
+      archerDwellingHex = { q, r };
+    }
+  }
+  assert.ok(archerDwellingHex);
+
+  // Player pays to build archer at their own Castle first — no map hex
+  // involved yet, so this is the one path that actually marks `built`
+  // (buildDwelling refuses once a tier is already unlocked, so building
+  // *after* capturing the dwelling isn't how a hero reaches this state).
+  state.heroes.player.resources.wood = 999999;
+  state.heroes.player.resources.ore = 999999;
+  buildDwelling(state, 'player', 'archer');
+  assert.ok(state.heroes.player.castle.built.has('archer'));
+
+  // The player's hero then also happens to walk over the actual map
+  // dwelling (redundant unlock, but now they own that hex too).
+  state.heroes.player.position = { q: archerDwellingHex.q - 1, r: archerDwellingHex.r };
+  moveHero(state, 'player', archerDwellingHex);
+  resolveBattleOutcome(state, 'attacker', [{ creatureTypeId: 'pikeman', count: 8 }]);
+
+  // The AI later takes that dwelling away from the player.
+  state.heroes.player.position = KEEP_PLAYER;
+  const dwelling = state.hexes.get(key(archerDwellingHex));
+  dwelling.guard = null;
+  state.heroes.ai.position = { q: archerDwellingHex.q + 1, r: archerDwellingHex.r };
+  state.heroes.ai.movementLeft = MOVEMENT_PER_DAY;
+  moveHero(state, 'ai', archerDwellingHex);
+
+  assert.equal(dwelling.ownerId, 'ai');
+  assert.equal(state.heroes.player.castle.unlocked.has('archer'), true); // built independently, kept
 });
 
 test('resolveBattleOutcome: attacker loses to a neutral guard, respawns at home keep', () => {
