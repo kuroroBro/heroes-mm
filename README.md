@@ -105,9 +105,13 @@ Decision #3, and
 [`specs/003-siege-and-spells/`](specs/003-siege-and-spells/) for castle
 sieges and the hero spellbook/mana system, which together superseded
 v1's "no magic" and 002's "no castle combat" Non-goals, and
-[`specs/004-siege-battlefield/`](specs/004-siege-battlefield/) (design
-only — not yet implemented) for the siege-specific wall/gate battlefield
-obstacles planned on top of that.
+[`specs/004-siege-battlefield/`](specs/004-siege-battlefield/) for the
+siege-specific wall/gate battlefield obstacles (destructible walls, one
+open gate, attacker catapult) shipped on top of that, and
+[`specs/005-castle-factions/`](specs/005-castle-factions/) (design only —
+not yet implemented) for splitting the single shared 10-creature roster
+into 4 factions (Human, Orc, Undead, Enkantos) of 7 creatures each,
+chosen at setup in place of the current hero-type pick.
 
 Unlike this workspace's other party games, this one has no networking
 yet — v1 is a single-device hero-vs-AI game. Multiplayer, following the
