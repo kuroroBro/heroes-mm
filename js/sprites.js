@@ -103,26 +103,40 @@ const HERO_SPRITES = {
 
 // The battle screen's flying attack-effect icon (js/main.js's
 // showAttackEffect), one per creature id, themed to how that creature
-// actually fights. The original 10 have a dedicated one; 6 of Enkantos's
-// 7 do too, reused directly from pinoy-board's own attack/enemy/ effect
-// icons (same real-art-reuse pattern as the creature portraits — these
-// are already 256x256 RGBA with true alpha, no restyling needed).
-// Santilmo has no matching pinoy-board attack icon and the other 11 new
-// Human/Orc/Undead creatures have no dedicated one yet — all fall back
-// to FALLBACK_SPRITE below rather than a dangling path.
+// actually fights. Every creature across all 4 factions now has a
+// dedicated one: the original 10 and the 11 new Human/Orc/Undead/Santilmo
+// icons are generated art in the same dark-painterly weapon/limb-on-black
+// style; the other 6 Enkantos icons are reused directly from pinoy-board's
+// own attack/enemy/ effect icons (same real-art-reuse pattern as the
+// creature portraits — already 256x256 RGBA with true alpha, no
+// restyling needed).
 const ATTACK_SPRITES = {
   'attack-peasant': 'images/creatures/attacks/attack-peasant.png',
   'attack-pikeman': 'images/creatures/attacks/attack-pikeman.png',
   'attack-archer': 'images/creatures/attacks/attack-archer.png',
+  'attack-swordsman': 'images/creatures/attacks/attack-swordsman.png',
+  'attack-griffin': 'images/creatures/attacks/attack-griffin.png',
+  'attack-cavalier': 'images/creatures/attacks/attack-cavalier.png',
+  'attack-dragon': 'images/creatures/attacks/attack-dragon.png',
+  // Orc
+  'attack-goblin': 'images/creatures/attacks/attack-goblin.png',
   'attack-wolf': 'images/creatures/attacks/attack-wolf.png',
   'attack-orc': 'images/creatures/attacks/attack-orc.png',
-  'attack-griffin': 'images/creatures/attacks/attack-griffin.png',
+  'attack-orc-chieftain': 'images/creatures/attacks/attack-orc-chieftain.png',
   'attack-ogre': 'images/creatures/attacks/attack-ogre.png',
-  'attack-skeleton': 'images/creatures/attacks/attack-skeleton.png',
   'attack-troll': 'images/creatures/attacks/attack-troll.png',
-  'attack-dragon': 'images/creatures/attacks/attack-dragon.png',
-  // Enkantos (pinoy-board reuse)
+  'attack-behemoth': 'images/creatures/attacks/attack-behemoth.png',
+  // Undead
+  'attack-skeleton': 'images/creatures/attacks/attack-skeleton.png',
+  'attack-zombie': 'images/creatures/attacks/attack-zombie.png',
+  'attack-ghost': 'images/creatures/attacks/attack-ghost.png',
+  'attack-wraith': 'images/creatures/attacks/attack-wraith.png',
+  'attack-vampire': 'images/creatures/attacks/attack-vampire.png',
+  'attack-lich': 'images/creatures/attacks/attack-lich.png',
+  'attack-bone-dragon': 'images/creatures/attacks/attack-bone-dragon.png',
+  // Enkantos (pinoy-board reuse, except santilmo which is generated)
   'attack-duwende': 'images/creatures/attacks/attack-duwende.png',
+  'attack-santilmo': 'images/creatures/attacks/attack-santilmo.png',
   'attack-manananggal': 'images/creatures/attacks/attack-manananggal.png',
   'attack-tikbalang': 'images/creatures/attacks/attack-tikbalang.png',
   'attack-aswang': 'images/creatures/attacks/attack-aswang.png',
