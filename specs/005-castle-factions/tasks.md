@@ -75,11 +75,14 @@
 - [x] `js/sprites.js` — all 28 `creature-<id>` and 28 `dwelling-<id>`
   entries present; verified programmatically that every registered path
   resolves to a real file on disk (zero missing). All 28 `creature-<id>`
-  are now real art (11 generated + 7 pinoy-board + 10 pre-existing); the
-  18 new `dwelling-<id>` icons remain flat placeholders — regenerating
-  those wasn't part of the Codex-upgrade retry and is still open.
-- [x] Attack-effect sprites: explicitly deferred for all 18 new
-  creatures (plan.md flagged this as a judgment call) — they fall back to
+  and all 28 `dwelling-<id>` are now real art (creatures: 11 generated +
+  7 pinoy-board + 10 pre-existing; dwellings: 18 generated + 10
+  pre-existing) — the 18 new dwelling icons were flat placeholders for a
+  short window post-launch, reported and regenerated in a follow-up pass.
+- [x] Attack-effect sprites: 6 of Enkantos's 7 reuse pinoy-board's own
+  attack/enemy/ effect icons directly (Duwende, Manananggal, Tikbalang,
+  Aswang, Kapre, Bakunawa); Santilmo and the 11 new Human/Orc/Undead
+  creatures still fall back to
   `FALLBACK_SPRITE` automatically, no dangling paths added.
 
 ## Phase 7 — Tests (id migration)

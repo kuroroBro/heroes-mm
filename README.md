@@ -82,13 +82,15 @@ creatures are copied directly from `pinoy-board`'s own
 `boardSprites/enemy/` (Duwende, Santilmo, Manananggal, Tikbalang, Aswang,
 Kapre, Bakunawa), same reuse pattern as the hex ground textures above and
 confirmed to already match this project's full-body painterly style. The
-other 11 creatures and the Enkantos hero token were generated via
-`image-gen` (an initial pass hit a hard Codex CLI version mismatch and
-fell back to flat placeholder SVGs; a Codex upgrade resolved it and all
-12 were regenerated as real art). The 18 new dwelling map/Castle-screen
-icons are still flat placeholder SVGs — that wasn't part of the retry;
-swapping them in later is a `js/sprites.js` path change only, same as
-any other placeholder-to-real-art swap.
+other 11 creatures, the Enkantos hero token, and all 18 new dwelling
+icons were generated via `image-gen` (an initial pass hit a hard Codex
+CLI version mismatch and fell back to flat placeholder SVGs; a Codex
+upgrade resolved it and everything was regenerated as real art — the
+dwelling icons in a short follow-up pass once the placeholder look was
+reported). 6 of Enkantos's 7 attack-effect icons also reuse pinoy-board
+directly (`boardSprites/attack/enemy/`); Santilmo has no match there and
+falls back to the generic effect sprite, same as the 11 new Human/Orc/
+Undead creatures.
 
 ## Deploying to GitHub Pages
 
