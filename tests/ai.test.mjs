@@ -59,26 +59,42 @@ test('aiSelectTarget picks a winnable guarded target when nothing free is availa
   assert.deepEqual(target, weakGuard);
 });
 
-test('aiSelectTarget refuses a guarded target it cannot beat', () => {
+test('aiSelectTarget refuses a guarded target it cannot beat, and refuses to fall back to a stronger enemy hero', () => {
   const toughGuard = { q: 2, r: 0 };
   const enemyPos = { q: 9, r: 9 };
   const state = adventureFixture({
     army: [{ creatureTypeId: 'peasant', count: 1 }], // very weak
-    enemyPos,
+    enemyPos, // default fixture enemy army: pikeman x5 — far stronger
     hexes: [
       [toughGuard, { type: 'mine', resource: 'gold', ownerId: null, guard: { creatureTypeId: 'dragon', count: 5 } }],
     ],
   });
   const target = aiSelectTarget(state, 'ai');
-  // Nothing free, nothing winnable -> falls back to the enemy hero.
+  // Nothing free, nothing winnable, and the enemy hero would win too ->
+  // nothing safe to do this day, rather than attacking anyway.
+  assert.equal(target, null);
+});
+
+test('aiSelectTarget falls back to the enemy hero position when the map has nothing else and it can win', () => {
+  const enemyPos = { q: 7, r: 7 };
+  const state = adventureFixture({
+    army: [{ creatureTypeId: 'dragon', count: 10 }], // overwhelming power
+    hexes: [],
+    enemyPos,
+  });
+  const target = aiSelectTarget(state, 'ai');
   assert.deepEqual(target, enemyPos);
 });
 
-test('aiSelectTarget falls back to the enemy hero position when the map has nothing else', () => {
+test('aiSelectTarget does not attack the enemy hero directly when it would likely lose, even with nothing else to do', () => {
   const enemyPos = { q: 7, r: 7 };
-  const state = adventureFixture({ hexes: [], enemyPos });
+  const state = adventureFixture({
+    army: [{ creatureTypeId: 'peasant', count: 1 }], // very weak
+    hexes: [],
+    enemyPos, // default fixture enemy army: pikeman x5 — far stronger
+  });
   const target = aiSelectTarget(state, 'ai');
-  assert.deepEqual(target, enemyPos);
+  assert.equal(target, null);
 });
 
 test('aiChooseBattleMove returns null for a ranged stack (no need to move to attack)', () => {

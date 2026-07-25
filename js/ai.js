@@ -36,15 +36,21 @@ function hexFromKey(k) {
 // enemy's Keep, if reachable and their hero isn't standing there (that's
 // just the plain enemy-hero fallback below, not a raid) — an away hero's
 // Keep has no defense of its own, so this is always a free raid, no power
-// check needed; else the enemy hero's own position (always engage if
-// nothing better is available). Returns a HexCoord or null only if there
-// is truly nothing on the map and no enemy hero (should not happen).
+// check needed; else the enemy hero directly, but ONLY if this army can
+// likely beat theirs (same WINNABLE_POWER_MARGIN gate as a guarded mine/
+// dwelling) — walking straight into a stronger hero used to be the
+// unconditional last resort here, which is exactly the "always attacks
+// even when weaker" behavior this margin now prevents. Returns a
+// HexCoord, or null if there is truly nothing worth doing this day (map
+// fully claimed and the enemy hero can't be beaten) — main.js just ends
+// the AI's day when this is null, same as running out of movement.
 export function aiSelectTarget(state, owner) {
   const hero = state.heroes[owner];
   const power = armyPower(hero.army);
   const enemyOwner = owner === 'player' ? 'ai' : 'player';
   const enemyHero = state.heroes[enemyOwner];
   const enemyPos = enemyHero.position;
+  const enemyPower = armyPower(enemyHero.army);
 
   let bestFree = null;
   let bestFreeDist = Infinity;
@@ -87,7 +93,8 @@ export function aiSelectTarget(state, owner) {
   if (bestFree) return bestFree;
   if (bestWinnable) return bestWinnable;
   if (siegeTarget) return siegeTarget;
-  return enemyPos;
+  if (power >= enemyPower * WINNABLE_POWER_MARGIN) return enemyPos;
+  return null;
 }
 
 // specs/004-siege-battlefield Decision #2: must consult the exact same
