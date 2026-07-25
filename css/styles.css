@@ -616,4 +616,11 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
 @media (max-width: 640px) {
   .adv-body { flex-direction: column; }
   .adv-sidebar { width: 100%; }
+  /* .adv-body .adv-map-wrap's flex: 1 1 32rem is a *width* basis for the
+     desktop row layout above — in this column layout the flex main axis
+     is vertical, so that same 32rem would instead force the wrapper's
+     height, leaving empty bordered space below the (much shorter, once
+     scaled to a narrow screen) hex grid. Reset it back to sizing from
+     actual content (the SVG's own width:100%/height:auto aspect ratio). */
+  .adv-body .adv-map-wrap { flex: 0 1 auto; }
 }
