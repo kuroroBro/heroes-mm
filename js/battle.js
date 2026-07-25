@@ -337,7 +337,16 @@ export function attackStack(state, attackerId, targetId) {
   }
 
   attacker.isDefending = false;
-  const report = { ok: true, attackerId, targetId, attackerHex, targetHex, ranged, damage, targetDied, retaliation };
+  // creatureTypeId travels alongside each stack's own id/hex for the same
+  // self-contained reason as the rest of this report (see comment above):
+  // the UI picks a per-creature attack sprite (main.js's
+  // showAttackEffect) from this alone, never by looking the stack back up
+  // in state.
+  const report = {
+    ok: true, attackerId, targetId, attackerHex, targetHex,
+    attackerCreatureTypeId: attacker.creatureTypeId, targetCreatureTypeId: target.creatureTypeId,
+    ranged, damage, targetDied, retaliation,
+  };
   if (checkBattleEnd(state)) return report;
   advanceTurn(state);
   return report;

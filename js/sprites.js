@@ -48,7 +48,25 @@ const HERO_SPRITES = {
   'hero-sentinel': 'images/creatures/hero-sentinel.svg',
 };
 
-const ALL_SPRITES = { ...OBJECT_SPRITES, ...CREATURE_SPRITES, ...HERO_SPRITES };
+// The battle screen's flying attack-effect icon (js/main.js's
+// showAttackEffect), one per creature id, themed to how that creature
+// actually fights: peasant's pitchfork, archer's arrow, wolf's claws,
+// orc's thrown axe (it's the roster's other ranged unit despite carrying
+// a melee-looking axe in its own portrait), dragon's fire breath, etc.
+const ATTACK_SPRITES = {
+  'attack-peasant': 'images/creatures/attacks/attack-peasant.png',
+  'attack-pikeman': 'images/creatures/attacks/attack-pikeman.png',
+  'attack-archer': 'images/creatures/attacks/attack-archer.png',
+  'attack-wolf': 'images/creatures/attacks/attack-wolf.png',
+  'attack-orc': 'images/creatures/attacks/attack-orc.png',
+  'attack-griffin': 'images/creatures/attacks/attack-griffin.png',
+  'attack-ogre': 'images/creatures/attacks/attack-ogre.png',
+  'attack-skeleton': 'images/creatures/attacks/attack-skeleton.png',
+  'attack-troll': 'images/creatures/attacks/attack-troll.png',
+  'attack-dragon': 'images/creatures/attacks/attack-dragon.png',
+};
+
+const ALL_SPRITES = { ...OBJECT_SPRITES, ...CREATURE_SPRITES, ...HERO_SPRITES, ...ATTACK_SPRITES };
 
 const FALLBACK_SPRITE = 'images/objects/unknown.svg';
 

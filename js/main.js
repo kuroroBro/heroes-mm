@@ -211,8 +211,63 @@ function renderArmyList(list, army) {
   for (const stack of army) {
     const creature = getCreature(stack.creatureTypeId);
     const li = document.createElement('li');
-    li.innerHTML = `<img src="${spritePath(creature.spriteId)}" alt="" width="22" height="22"> ${creature.name} x${stack.count}`;
+    li.className = 'army-list-item';
+    li.innerHTML = `<img src="${spritePath(creature.spriteId)}" alt="" width="22" height="22"> <span><strong>${creature.name}</strong> x${stack.count}</span>`;
+    
+    const tooltipText = `${creature.name} (Tier ${creature.tier} ${creature.ranged ? 'Ranged' : 'Melee'})\nCount: ${stack.count} (Total HP: ${stack.count * creature.hp})\nATK: ${creature.attack} | DEF: ${creature.defense}\nHP: ${creature.hp} | DMG: ${creature.dmgMin}-${creature.dmgMax} | SPD: ${creature.speed}`;
+    li.setAttribute('title', tooltipText);
+
+    li.addEventListener('mouseenter', (e) => showCreatureInspector(creature, stack.count, e));
+    li.addEventListener('mousemove', (e) => showCreatureInspector(creature, stack.count, e));
+    li.addEventListener('mouseleave', hideMapTooltip);
+
     list.appendChild(li);
+  }
+}
+
+function showCreatureInspector(creature, count, mouseEvt = null) {
+  const titleEl = $('inspector-title');
+  const bodyEl = $('inspector-body');
+  const typeText = creature.ranged ? '🏹 Ranged Unit' : '⚔️ Melee Unit';
+  const badgeColor = '#4fc3f7';
+
+  if (titleEl) {
+    titleEl.textContent = `🐾 ${creature.name} (Tier ${creature.tier})`;
+    titleEl.style.color = badgeColor;
+  }
+
+  const totalHp = count * creature.hp;
+  if (bodyEl) {
+    bodyEl.innerHTML = `
+      <div style="margin-bottom:0.3rem"><strong>${count}x ${creature.name}s in your army</strong></div>
+      <div style="margin-bottom:0.15rem">• Type: ${typeText} (Tier ${creature.tier})</div>
+      <div style="margin-bottom:0.15rem">• Attack: <strong>${creature.attack}</strong> | Defense: <strong>${creature.defense}</strong></div>
+      <div style="margin-bottom:0.15rem">• HP: <strong>${creature.hp}</strong> / unit (Total HP: <strong>${totalHp}</strong>)</div>
+      <div style="margin-bottom:0.15rem">• Damage: <strong>${creature.dmgMin}-${creature.dmgMax}</strong> | Speed: <strong>${creature.speed}</strong></div>
+      <div style="margin-bottom:0.15rem">• Base Growth: <strong>${creature.growthPerDay}</strong>/day</div>
+    `;
+  }
+
+  const tooltip = $('adv-map-tooltip');
+  if (tooltip && mouseEvt) {
+    tooltip.hidden = false;
+    tooltip.innerHTML = `
+      <div style="font-weight:bold; color:${badgeColor}">🐾 ${creature.name} (Tier ${creature.tier})</div>
+      <div style="font-size:0.8rem; color:#cbb98f">${count}x in army (Total HP: ${totalHp})</div>
+      <div style="font-size:0.78rem; margin-top:4px; border-top:1px solid rgba(255,255,255,0.2); padding-top:4px">
+        <div>• ATK: ${creature.attack} | DEF: ${creature.defense}</div>
+        <div>• HP: ${creature.hp} | DMG: ${creature.dmgMin}-${creature.dmgMax}</div>
+        <div>• SPD: ${creature.speed} | ${typeText}</div>
+      </div>
+    `;
+    const wrap = $('adv-map-wrap');
+    if (wrap) {
+      const rect = wrap.getBoundingClientRect();
+      const x = mouseEvt.clientX - rect.left + 14;
+      const y = mouseEvt.clientY - rect.top + 14;
+      tooltip.style.left = `${Math.min(x, rect.width - 220)}px`;
+      tooltip.style.top = `${Math.min(y, rect.height - 100)}px`;
+    }
   }
 }
 
@@ -1295,6 +1350,8 @@ function spawnFloatingNumber(pos, text, kind) {
   setTimeout(() => el.remove(), FLOAT_MS);
 }
 
+// Emoji-text version — still used for spell effects (showSpellEffect
+// below), which aren't tied to any one creature.
 function spawnFlightEffect(fromPos, toPos, icon) {
   if (!fromPos || !toPos) return;
   const dx = toPos.x - fromPos.x;
@@ -1309,19 +1366,42 @@ function spawnFlightEffect(fromPos, toPos, icon) {
   setTimeout(() => el.remove(), FLIGHT_MS);
 }
 
-const ATTACK_ICON_MELEE = '⚔️';
-const ATTACK_ICON_RANGED = '🏹';
+// Image version — one themed sprite per creature (js/sprites.js's
+// ATTACK_SPRITES, e.g. the wolf's claws or the dragon's fire breath)
+// instead of a generic sword/bow emoji, so an attack visually reads as
+// "that specific creature's attack" rather than a stand-in icon. Same
+// flight/pop keyframe as the emoji version (battle-attack-flight doesn't
+// care what kind of element it's animating), just built as an <image>.
+const ATTACK_ICON_SIZE_MULT = 1.7; // relative to battleMapHexSize
+function spawnFlightImage(fromPos, toPos, creatureTypeId) {
+  if (!fromPos || !toPos) return;
+  const dx = toPos.x - fromPos.x;
+  const dy = toPos.y - fromPos.y;
+  const size = battleMapHexSize * ATTACK_ICON_SIZE_MULT;
+  const el = svgEl('image', {
+    href: spritePath('attack-' + creatureTypeId),
+    x: fromPos.x - size / 2, y: fromPos.y - size / 2, width: size, height: size,
+    class: 'battle-attack-flight',
+    style: `--fx-dx:${dx}px; --fx-dy:${dy}px;`,
+  });
+  $('battle-effects').appendChild(el);
+  setTimeout(() => el.remove(), FLIGHT_MS);
+}
+
 const SPELL_ICON = { damage: '🔥', heal: '✨', buff: '⬆️', debuff: '⬇️' };
 
 function showAttackEffect(result) {
-  const { attackerId, targetId, attackerHex, targetHex, damage, ranged, targetDied, retaliation } = result;
+  const {
+    attackerId, targetId, attackerHex, targetHex, attackerCreatureTypeId, targetCreatureTypeId,
+    damage, targetDied, retaliation,
+  } = result;
   const fromPos = hexPixelPos(attackerHex);
   const toPos = hexPixelPos(targetHex);
 
   // Phase 1: the icon flies out (lunge fires with it, not queued — it's
   // the attacker's own reaction, not something that needs to "land").
   queueEffectStep(() => {
-    spawnFlightEffect(fromPos, toPos, ranged ? ATTACK_ICON_RANGED : ATTACK_ICON_MELEE);
+    spawnFlightImage(fromPos, toPos, attackerCreatureTypeId);
     flashStackSprite(attackerId, 'stack-lunge', LUNGE_MS);
   }, IMPACT_DELAY_MS);
   // Phase 2: only once the icon has visually arrived does the damage
@@ -1334,8 +1414,12 @@ function showAttackEffect(result) {
   }, REST_OF_FLIGHT_MS);
 
   if (retaliation) {
+    // The retaliator is whichever stack was on the receiving end of the
+    // original attack, so its own attack sprite (not the original
+    // attacker's) is what flies back — targetCreatureTypeId, not
+    // attackerCreatureTypeId.
     queueEffectStep(() => {
-      spawnFlightEffect(toPos, fromPos, ATTACK_ICON_MELEE);
+      spawnFlightImage(toPos, fromPos, targetCreatureTypeId);
     }, IMPACT_DELAY_MS);
     queueEffectStep(() => {
       spawnFloatingNumber(fromPos, `-${retaliation.damage}`, 'dmg');
