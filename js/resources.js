@@ -13,6 +13,11 @@ export const MINE_YIELD = {
   gems: 1,
 };
 
+// Baseline gold a hero's own Keep produces every day just for being
+// owned, same as HoMM3's Town Hall — on top of, not instead of, any gold
+// mines actually captured.
+export const KEEP_GOLD_YIELD = 500;
+
 export function emptyResourcePool() {
   const pool = {};
   for (const r of RESOURCES) pool[r] = 0;

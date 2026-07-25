@@ -6,7 +6,7 @@
 import { key, equals, findPath, inRect } from './hexgrid.js';
 import { getHeroType } from './heroTypes.js';
 import { getCreature } from './creatures.js';
-import { RESOURCES, emptyResourcePool, MINE_YIELD } from './resources.js';
+import { RESOURCES, emptyResourcePool, MINE_YIELD, KEEP_GOLD_YIELD } from './resources.js';
 import { MAP_WIDTH, MAP_HEIGHT, MAP_OBJECTS, KEEP_PLAYER, KEEP_AI } from './mapObjects.js';
 import { MAX_ARMY_SLOTS, armyValue } from './army.js';
 import { initCastle, unlock, accrueGrowth } from './castle.js';
@@ -326,8 +326,12 @@ export function endDay(state) {
   if (state.phase !== 'playing') return false;
 
   for (const occupant of state.hexes.values()) {
-    if (!occupant.ownerId || occupant.type !== 'mine') continue;
-    state.heroes[occupant.ownerId].resources[occupant.resource] += MINE_YIELD[occupant.resource];
+    if (!occupant.ownerId) continue;
+    if (occupant.type === 'mine') {
+      state.heroes[occupant.ownerId].resources[occupant.resource] += MINE_YIELD[occupant.resource];
+    } else if (occupant.type === 'keep') {
+      state.heroes[occupant.ownerId].resources.gold += KEEP_GOLD_YIELD;
+    }
   }
 
   state.day += 1;

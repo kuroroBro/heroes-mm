@@ -1,5 +1,5 @@
 import { key, equals, axialToPixel, rectHexes, distance as hexDistance } from './hexgrid.js';
-import { RESOURCES, MINE_YIELD } from './resources.js';
+import { RESOURCES, MINE_YIELD, KEEP_GOLD_YIELD } from './resources.js';
 import { CREATURES, getCreature } from './creatures.js';
 import { HERO_TYPES, getHeroType } from './heroTypes.js';
 import { spritePath } from './sprites.js';
@@ -361,6 +361,7 @@ function getHexInspectionDetails(hex) {
       subtitle: occupant.ownerId === 'player' ? 'Your Home Base & Castle' : 'Enemy Fortress (Siege Target)',
       details: [
         `Owner: ${occupant.ownerId ? occupant.ownerId.toUpperCase() : 'Unclaimed'}`,
+        `Produces +${KEEP_GOLD_YIELD} Gold per day for its owner`,
         occupant.ownerId === 'player' ? 'Click 🏰 Castle button to recruit creatures & learn spells.' : 'Move hero onto enemy keep to initiate a Siege!'
       ],
       badgeColor: occupant.ownerId === 'player' ? '#4fc3f7' : (occupant.ownerId === 'ai' ? '#ff6b4a' : '#ffd23f'),

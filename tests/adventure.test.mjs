@@ -266,9 +266,19 @@ test('endDay refills movement and pays out owned mine income', () => {
   const before = state.heroes.player.resources.gold;
   endDay(state);
   assert.equal(state.heroes.player.movementLeft, MOVEMENT_PER_DAY);
-  assert.equal(state.heroes.player.resources.gold, before + 1000);
+  // Mine income (1000) plus the player's own Keep's baseline income (500).
+  assert.equal(state.heroes.player.resources.gold, before + 1000 + 500);
   assert.equal(state.heroes.player.castle.pool.peasant, 8); // growthPerDay accrues via endDay too
   assert.equal(state.day, 2);
+});
+
+test('endDay pays out baseline Keep gold income for both heroes, mine or no mine', () => {
+  const state = freshState();
+  const playerBefore = state.heroes.player.resources.gold;
+  const aiBefore = state.heroes.ai.resources.gold;
+  endDay(state);
+  assert.equal(state.heroes.player.resources.gold, playerBefore + 500);
+  assert.equal(state.heroes.ai.resources.gold, aiBefore + 500);
 });
 
 test('endDay refuses to run mid-battle', () => {
