@@ -27,12 +27,21 @@ function randomInt(min, max, rng) {
 
 // Attacker stacks line up down the left edge (q=1), defender stacks down
 // the right edge (q=BATTLE_WIDTH-2), one row apart, centered vertically.
+//
+// The battlefield uses the same "offset column" axial layout as the
+// adventure map (hexgrid.js's rectHexes: axial r = visual row -
+// floor(q/2)) — a raw row number is only a valid axial r at q=0. Skipping
+// that conversion here used to place higher-index defender stacks (any
+// battle with 3+ defending stacks) at an r outside the actual rectangle
+// for q=BATTLE_WIDTH-2, so the stack existed (still took its turn, still
+// attackable) but rendered nowhere on the map — invisible, not buried.
 function startingPosition(side, index, total) {
   const q = side === 'attacker' ? 1 : BATTLE_WIDTH - 2;
+  const qOffset = Math.floor(q / 2);
   const spread = Math.min(total, BATTLE_HEIGHT);
   const startRow = Math.floor((BATTLE_HEIGHT - spread) / 2);
-  const r = startRow + (index % spread);
-  return { q, r };
+  const row = startRow + (index % spread);
+  return { q, r: row - qOffset };
 }
 
 // A side "has a hero" (and so can cast spells) only if its bonus object

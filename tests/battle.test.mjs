@@ -7,7 +7,7 @@ import {
   SIEGE_WALL_COLUMN, SIEGE_GATE_ROW, WALL_HP, CATAPULT_DAMAGE,
 } from '../js/battle.js';
 import { getSpell } from '../js/spells.js';
-import { key } from '../js/hexgrid.js';
+import { key, rectHexes } from '../js/hexgrid.js';
 
 const rngZero = () => 0;
 const rngMax = () => 0.9999;
@@ -39,6 +39,23 @@ test('createBattle places attacker stacks on the left, defender on the right', (
   const defender = state.stacks.find((s) => s.side === 'defender');
   assert.equal(attacker.position.q, 1);
   assert.equal(defender.position.q, BATTLE_WIDTH - 2);
+});
+
+test('every starting position, both sides, any army size, lands on the actual battlefield rectangle', () => {
+  const validHexes = new Set(rectHexes(BATTLE_WIDTH, BATTLE_HEIGHT).map(key));
+  for (let armySize = 1; armySize <= 7; armySize++) {
+    const army = Array.from({ length: armySize }, (_, i) => ({ creatureTypeId: 'peasant', count: i + 1 }));
+    const state = createBattle(
+      army, army,
+      { attack: 0, defense: 0 }, { attack: 0, defense: 0 },
+    );
+    for (const stack of state.stacks) {
+      assert.ok(
+        validHexes.has(key(stack.position)),
+        `army size ${armySize}: ${stack.side} stack at ${JSON.stringify(stack.position)} is off the battlefield`,
+      );
+    }
+  }
 });
 
 test('turn order picks the highest-Speed surviving stack; attacker wins ties', () => {
