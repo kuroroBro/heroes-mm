@@ -33,9 +33,10 @@
       <ol class="htp-steps">
         <li>Pick your hero type, then <strong>Start Game</strong>. You and
           an AI opponent each start at opposite corners of the hex map.</li>
-        <li><strong>Move</strong> — click a hex to move your hero there
-          (pathfound automatically). Each hex costs 1 of your day's
-          movement points.</li>
+        <li><strong>Move</strong> — click a hex once to select it (shows
+          its details), click that <strong>same hex again</strong> to
+          confirm and move there (pathfound automatically). Each hex
+          costs 1 of your day's movement points.</li>
         <li>Your <strong>Keep</strong> produces 500 gold every day on its
           own, on top of anything from mines. Walking onto an unguarded
           mine or dwelling <strong>captures it</strong> instantly — mines
@@ -74,6 +75,38 @@
           has the higher Kingdom Score (mines, creature tiers, army) wins.</li>
       </ol>
       <button id="btn-close-how-to-play" class="btn btn-primary btn-big">Got it!</button>
+    </div>
+  </dialog>
+
+  <!-- ============ CREATURE CARD DIALOG ============ -->
+  <dialog id="dialog-creature-card" class="creature-card-dialog">
+    <div class="creature-card-body">
+      <button id="btn-close-creature-card" type="button" class="btn btn-ghost creature-card-close" aria-label="Close">✕</button>
+      
+      <div class="creature-card-header">
+        <div class="creature-card-avatar-wrap">
+          <img id="creature-card-avatar" src="" alt="" class="creature-card-avatar">
+          <img id="creature-card-dwelling-icon" src="" alt="" class="creature-card-dwelling-badge" title="Dwelling Building">
+        </div>
+        <div class="creature-card-titles">
+          <h2 id="creature-card-name">Peasant</h2>
+          <div id="creature-card-badge" class="creature-card-badge-pill">Tier 1 · Melee Unit</div>
+        </div>
+      </div>
+
+      <div class="creature-card-grid">
+        <div class="stat-box"><span class="stat-label">⚔️ Attack</span><span id="cc-stat-attack" class="stat-val">1</span></div>
+        <div class="stat-box"><span class="stat-label">🛡️ Defense</span><span id="cc-stat-defense" class="stat-val">1</span></div>
+        <div class="stat-box"><span class="stat-label">❤️ Health (HP)</span><span id="cc-stat-hp" class="stat-val">1</span></div>
+        <div class="stat-box"><span class="stat-label">💥 Damage</span><span id="cc-stat-damage" class="stat-val">1-1</span></div>
+        <div class="stat-box"><span class="stat-label">⚡ Speed</span><span id="cc-stat-speed" class="stat-val">3</span></div>
+        <div class="stat-box"><span class="stat-label">🏰 Daily Growth</span><span id="cc-stat-growth" class="stat-val">+8/day</span></div>
+      </div>
+
+      <div class="creature-card-costs">
+        <div class="cost-row"><span>Recruit Cost:</span> <strong id="cc-recruit-cost">10 gold each</strong></div>
+        <div class="cost-row"><span>Dwelling Build Cost:</span> <strong id="cc-build-cost">200 gold, 5 wood</strong></div>
+      </div>
     </div>
   </dialog>
 

@@ -168,6 +168,7 @@ $('btn-start-game').addEventListener('click', () => {
   const aiHeroTypeId = otherTypes[Math.floor(Math.random() * otherTypes.length)].id;
   adventureState = createAdventure(selectedHeroTypeId, aiHeroTypeId);
   aiDayInProgress = false;
+  resetInspectorUI();
   showScreen('screen-adventure');
   renderAdventure();
 });
@@ -179,6 +180,10 @@ const ADV_HEX_SIZE = 26;
 
 function renderAdventure() {
   const state = adventureState;
+  // A day transition, battle resolution, etc. can move the hero or change
+  // what's reachable out from under a previously-armed hex — always
+  // require a fresh arm/confirm pair after any such full re-render.
+  pendingMoveHexKey = null;
   $('adv-day').textContent = state.day;
   $('adv-day-limit').textContent = state.dayLimit;
   $('adv-moves').textContent = state.heroes.player.movementLeft;
@@ -220,6 +225,7 @@ function renderArmyList(list, army) {
     li.addEventListener('mouseenter', (e) => showCreatureInspector(creature, stack.count, e));
     li.addEventListener('mousemove', (e) => showCreatureInspector(creature, stack.count, e));
     li.addEventListener('mouseleave', hideMapTooltip);
+    li.addEventListener('click', () => openCreatureCardDialog(creature.id));
 
     list.appendChild(li);
   }
@@ -483,24 +489,13 @@ function resetInspectorUI() {
   if (bodyEl) bodyEl.textContent = 'Hover or click any object on the map to inspect details.';
 }
 
-// Tracks which hex the sidebar's Map Inspector card is currently showing,
-// so a second click/tap on that same hex clears it back to the default
-// placeholder instead of just re-showing the same info — the floating
-// tooltip already hides itself on mouseleave, but a touchscreen has no
-// such event, so without this a tapped description would otherwise sit
-// there permanently until a different hex is tapped.
-let inspectedHexKey = null;
-
-function toggleInspectorUI(hex) {
-  const hexKey = key(hex);
-  if (inspectedHexKey === hexKey) {
-    inspectedHexKey = null;
-    resetInspectorUI();
-    return;
-  }
-  inspectedHexKey = hexKey;
-  updateInspectorUI(hex);
-}
+// Adventure-map movement is arm-then-confirm: clicking a hex the first
+// time (or a different hex than whatever was already armed) only selects
+// it — shows its Map Inspector info and a pulsing highlight — without
+// moving. Clicking that SAME hex again is what actually commits the
+// move. Guards against stray/misclicks actually relocating the hero
+// (especially on mobile, where a tap doesn't get a hover preview first).
+let pendingMoveHexKey = null;
 
 function drawMapSvgBadge(svg, cx, cy, text, bgFill = '#241a10', textFill = '#f5ead2', borderFill = '#5a4327', fontSize = 9) {
   const g = svgEl('g', { class: 'map-badge-group', 'pointer-events': 'none' });
@@ -572,11 +567,15 @@ function renderAdventureMap() {
     poly.addEventListener('mouseenter', (e) => updateInspectorUI(hex, e));
     poly.addEventListener('mousemove', (e) => updateInspectorUI(hex, e));
     poly.addEventListener('mouseleave', hideMapTooltip);
-    poly.addEventListener('click', () => { toggleInspectorUI(hex); handleAdventureHexClick(hex); });
+    poly.addEventListener('click', () => handleAdventureHexClick(hex));
     svg.appendChild(poly);
 
     if (inRange) {
       svg.appendChild(svgEl('polygon', { points, class: 'hex-tile-tint in-range' }));
+    }
+
+    if (key(hex) === pendingMoveHexKey) {
+      svg.appendChild(svgEl('polygon', { points, class: 'hex-tile-highlight pending-move' }));
     }
 
     if (isFilterMatch) {
@@ -619,7 +618,7 @@ function renderAdventureMap() {
       img.addEventListener('mouseenter', (e) => updateInspectorUI(hex, e));
       img.addEventListener('mousemove', (e) => updateInspectorUI(hex, e));
       img.addEventListener('mouseleave', hideMapTooltip);
-      img.addEventListener('click', () => { toggleInspectorUI(hex); handleAdventureHexClick(hex); });
+      img.addEventListener('click', () => handleAdventureHexClick(hex));
       svg.appendChild(img);
 
       // 3. Ownership Rings & Category Badges
@@ -681,7 +680,7 @@ function renderAdventureMap() {
     heroImg.addEventListener('mouseenter', (e) => updateInspectorUI(hero.position, e));
     heroImg.addEventListener('mousemove', (e) => updateInspectorUI(hero.position, e));
     heroImg.addEventListener('mouseleave', hideMapTooltip);
-    heroImg.addEventListener('click', () => { toggleInspectorUI(hero.position); handleAdventureHexClick(hero.position); });
+    heroImg.addEventListener('click', () => handleAdventureHexClick(hero.position));
     svg.appendChild(heroImg);
 
     // Hero Level Badge
@@ -693,8 +692,16 @@ function renderAdventureMap() {
 
 function handleAdventureHexClick(hex) {
   if (!adventureState || adventureState.phase !== 'playing' || aiDayInProgress) return;
+  const hexKey = key(hex);
+  if (pendingMoveHexKey !== hexKey) {
+    pendingMoveHexKey = hexKey;
+    updateInspectorUI(hex);
+    renderAdventureMap();
+    return;
+  }
+  pendingMoveHexKey = null;
   const ok = moveHero(adventureState, 'player', hex);
-  if (!ok) return;
+  if (!ok) { renderAdventureMap(); return; }
   renderAdventure();
   if (adventureState.phase === 'battle') startBattleFromPending();
 }
@@ -763,6 +770,54 @@ $('btn-castle-back').addEventListener('click', () => {
   renderAdventure();
 });
 
+function openCreatureCardDialog(creatureId) {
+  const creature = getCreature(creatureId);
+  if (!creature) return;
+
+  const avatarEl = $('creature-card-avatar');
+  const dwellingIconEl = $('creature-card-dwelling-icon');
+  const nameEl = $('creature-card-name');
+  const badgeEl = $('creature-card-badge');
+
+  if (avatarEl) avatarEl.src = spritePath(creature.spriteId);
+  if (dwellingIconEl) dwellingIconEl.src = spritePath('dwelling-' + creature.id);
+  if (nameEl) nameEl.textContent = creature.name;
+  if (badgeEl) badgeEl.textContent = `Tier ${creature.tier} · ${creature.ranged ? '🏹 Ranged Unit' : '⚔️ Melee Unit'}`;
+
+  const attackEl = $('cc-stat-attack');
+  const defenseEl = $('cc-stat-defense');
+  const hpEl = $('cc-stat-hp');
+  const damageEl = $('cc-stat-damage');
+  const speedEl = $('cc-stat-speed');
+  const growthEl = $('cc-stat-growth');
+
+  if (attackEl) attackEl.textContent = creature.attack;
+  if (defenseEl) defenseEl.textContent = creature.defense;
+  if (hpEl) hpEl.textContent = creature.hp;
+  if (damageEl) damageEl.textContent = `${creature.dmgMin}-${creature.dmgMax}`;
+  if (speedEl) speedEl.textContent = creature.speed;
+  if (growthEl) growthEl.textContent = `+${creature.growthPerDay}/day`;
+
+  const recruitCostEl = $('cc-recruit-cost');
+  const buildCostEl = $('cc-build-cost');
+
+  if (recruitCostEl) recruitCostEl.textContent = formatCost(RECRUIT_COST[creature.id]) + ' each';
+  if (buildCostEl) buildCostEl.textContent = formatCost(BUILD_COST[creature.id]);
+
+  const dialog = $('dialog-creature-card');
+  if (dialog) dialog.showModal();
+}
+
+$('btn-close-creature-card').addEventListener('click', () => {
+  const dialog = $('dialog-creature-card');
+  if (dialog) dialog.close();
+});
+
+$('dialog-creature-card').addEventListener('click', (e) => {
+  const dialog = $('dialog-creature-card');
+  if (e.target === dialog) dialog.close();
+});
+
 function renderCastle() {
   const hero = adventureState.heroes.player;
   $('castle-resources').textContent = RESOURCES.map((r) => `${r}: ${hero.resources[r]}`).join(' · ');
@@ -776,17 +831,32 @@ function renderCastle() {
 
     const info = document.createElement('div');
     info.className = 'castle-row-info';
+    info.style.cursor = 'pointer';
+    info.title = `Click to view ${creature.name} attributes card`;
+    info.addEventListener('click', () => openCreatureCardDialog(creature.id));
+
     if (unlocked) {
       const pool = hero.castle.pool[creature.id] || 0;
-      info.innerHTML = `<div class="castle-row-name">${creature.name} (tier ${creature.tier})</div>
+      info.innerHTML = `<div class="castle-row-name">${creature.name} (tier ${creature.tier}) ℹ️</div>
         <div class="castle-row-detail">Pool: ${pool} (+${creature.growthPerDay}/day) · recruit cost: ${formatCost(RECRUIT_COST[creature.id])} each</div>`;
     } else {
-      info.innerHTML = `<div class="castle-row-name">${creature.name} (tier ${creature.tier})</div>
+      info.innerHTML = `<div class="castle-row-name">${creature.name} (tier ${creature.tier}) ℹ️</div>
         <div class="castle-row-detail">Not built — build cost: ${formatCost(BUILD_COST[creature.id])}</div>`;
     }
 
     const actions = document.createElement('div');
     actions.className = 'castle-row-actions';
+
+    const cardBtn = document.createElement('button');
+    cardBtn.type = 'button';
+    cardBtn.className = 'btn btn-ghost btn-small';
+    cardBtn.textContent = 'ℹ️ Card';
+    cardBtn.title = `View ${creature.name} Attributes Card`;
+    cardBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openCreatureCardDialog(creature.id);
+    });
+
     if (unlocked) {
       const max = maxRecruitable(hero, creature.id);
       const input = document.createElement('input');
@@ -804,7 +874,7 @@ function renderCastle() {
         const count = Math.max(0, Math.min(max, Number(input.value) || 0));
         if (count > 0 && recruitCreatures(adventureState, 'player', creature.id, count)) renderCastle();
       });
-      actions.append(input, btn);
+      actions.append(cardBtn, input, btn);
     } else {
       const btn = document.createElement('button');
       btn.type = 'button';
@@ -814,7 +884,7 @@ function renderCastle() {
       btn.addEventListener('click', () => {
         if (buildDwelling(adventureState, 'player', creature.id)) renderCastle();
       });
-      actions.append(btn);
+      actions.append(cardBtn, btn);
     }
 
     const img = document.createElement('img');
@@ -822,6 +892,9 @@ function renderCastle() {
     img.alt = '';
     img.width = 40;
     img.height = 40;
+    img.style.cursor = 'pointer';
+    img.title = `Click to view ${creature.name} attributes card`;
+    img.addEventListener('click', () => openCreatureCardDialog(creature.id));
 
     li.append(img, info, actions);
     list.appendChild(li);
