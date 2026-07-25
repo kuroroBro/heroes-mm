@@ -261,7 +261,10 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
   line-height: 1.4;
 }
 
-/* Hover Tooltip */
+/* Hover Tooltip — desktop-only. A touchscreen has no real "leave" event to
+   dismiss it on, so it would otherwise get stuck open over the map after a
+   tap; the same info is already in the sidebar's Map Inspector card, which
+   never covers anything, so touch devices just skip the floating popup. */
 .adv-map-tooltip {
   position: absolute;
   z-index: 100;
@@ -274,6 +277,9 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
   color: var(--text);
   box-shadow: 0 4px 12px rgba(0,0,0,0.6);
   white-space: nowrap;
+}
+@media (hover: none) {
+  .adv-map-tooltip { display: none !important; }
 }
 
 .adv-sidebar {
