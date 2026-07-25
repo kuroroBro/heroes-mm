@@ -472,6 +472,35 @@ function hideMapTooltip() {
   if (tooltip) tooltip.hidden = true;
 }
 
+function resetInspectorUI() {
+  const titleEl = $('inspector-title');
+  const bodyEl = $('inspector-body');
+  if (titleEl) {
+    titleEl.textContent = 'Select a hex';
+    titleEl.style.color = '';
+  }
+  if (bodyEl) bodyEl.textContent = 'Hover or click any object on the map to inspect details.';
+}
+
+// Tracks which hex the sidebar's Map Inspector card is currently showing,
+// so a second click/tap on that same hex clears it back to the default
+// placeholder instead of just re-showing the same info — the floating
+// tooltip already hides itself on mouseleave, but a touchscreen has no
+// such event, so without this a tapped description would otherwise sit
+// there permanently until a different hex is tapped.
+let inspectedHexKey = null;
+
+function toggleInspectorUI(hex) {
+  const hexKey = key(hex);
+  if (inspectedHexKey === hexKey) {
+    inspectedHexKey = null;
+    resetInspectorUI();
+    return;
+  }
+  inspectedHexKey = hexKey;
+  updateInspectorUI(hex);
+}
+
 function drawMapSvgBadge(svg, cx, cy, text, bgFill = '#241a10', textFill = '#f5ead2', borderFill = '#5a4327', fontSize = 9) {
   const g = svgEl('g', { class: 'map-badge-group', 'pointer-events': 'none' });
   const padX = 4;
@@ -542,7 +571,7 @@ function renderAdventureMap() {
     poly.addEventListener('mouseenter', (e) => updateInspectorUI(hex, e));
     poly.addEventListener('mousemove', (e) => updateInspectorUI(hex, e));
     poly.addEventListener('mouseleave', hideMapTooltip);
-    poly.addEventListener('click', () => handleAdventureHexClick(hex));
+    poly.addEventListener('click', () => { toggleInspectorUI(hex); handleAdventureHexClick(hex); });
     svg.appendChild(poly);
 
     if (inRange) {
@@ -589,7 +618,7 @@ function renderAdventureMap() {
       img.addEventListener('mouseenter', (e) => updateInspectorUI(hex, e));
       img.addEventListener('mousemove', (e) => updateInspectorUI(hex, e));
       img.addEventListener('mouseleave', hideMapTooltip);
-      img.addEventListener('click', () => handleAdventureHexClick(hex));
+      img.addEventListener('click', () => { toggleInspectorUI(hex); handleAdventureHexClick(hex); });
       svg.appendChild(img);
 
       // 3. Ownership Rings & Category Badges
@@ -651,7 +680,7 @@ function renderAdventureMap() {
     heroImg.addEventListener('mouseenter', (e) => updateInspectorUI(hero.position, e));
     heroImg.addEventListener('mousemove', (e) => updateInspectorUI(hero.position, e));
     heroImg.addEventListener('mouseleave', hideMapTooltip);
-    heroImg.addEventListener('click', () => handleAdventureHexClick(hero.position));
+    heroImg.addEventListener('click', () => { toggleInspectorUI(hero.position); handleAdventureHexClick(hero.position); });
     svg.appendChild(heroImg);
 
     // Hero Level Badge
