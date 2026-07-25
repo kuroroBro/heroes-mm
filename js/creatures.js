@@ -1,6 +1,6 @@
 // Content: 28 creatures across 4 factions, 7 tiers each (specs/005-castle-
 // factions plan.md Decision #2). Stats are a deliberately simplified
-// HoMM3-inspired baseline — see specs/001-hex-heroes/plan.md's Decision #2
+// classic tactical-strategy baseline — see specs/001-hex-heroes/plan.md's Decision #2
 // for how attack/defense/hp/dmg are used in the battle damage formula, and
 // spec.md's Non-goals for what's intentionally NOT modeled (special
 // abilities, flying, etc.). `tier` is per-faction (1-7), not a single

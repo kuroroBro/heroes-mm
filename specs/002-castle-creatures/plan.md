@@ -76,9 +76,9 @@ Non-goals) to avoid a second balance axis (how much production bonus is
 shows capturing map dwellings feels pointless once a hero can just buy
 everything. Similarly, all 10 tiers are buildable independently with no
 tech-tree gating — a "must build tier N-1 first" chain is the kind of
-scope a full HoMM town screen has (Town Hall → Fort → Citadel → Castle,
-per-dwelling upgrade chains) that this feature deliberately does not
-attempt; see spec.md Non-goals.
+scope a full classic town screen has (Town Hall → Fort → Citadel →
+Castle, per-dwelling upgrade chains) that this feature deliberately does
+not attempt; see spec.md Non-goals.
 
 ### Decision #3: Content values — build and recruit costs
 
@@ -102,7 +102,7 @@ tier.
 | 5 | Orc | 300 gold, 1 ore | 1500 ore, 4 crystal |
 | 6 | Griffin | 450 gold, 1 crystal | 2000 gold, 8 crystal |
 | 7 | Ogre | 650 gold, 1 mercury | 2500 gold, 8 mercury |
-| 8 | Skeleton | 500 gold *(cheap outlier — undead flavor, matches HoMM's own Skeleton pricing, see below)* | 1800 gold, 6 sulfur |
+| 8 | Skeleton | 500 gold *(cheap outlier — undead flavor, matches the genre's classic Skeleton pricing, see below)* | 1800 gold, 6 sulfur |
 | 9 | Troll | 900 gold, 1 sulfur | 3500 gold, 10 sulfur |
 | 10 | Dragon | 3000 gold, 2 gems, 2 sulfur, 2 mercury | 8000 gold, 15 gems |
 

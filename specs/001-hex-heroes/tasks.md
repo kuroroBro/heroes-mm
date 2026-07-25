@@ -1,4 +1,4 @@
-# Tasks: Hex Heroes — A Heroes of Might & Magic Tribute
+# Tasks: Hex Heroes
 
 **Plan**: [plan.md](./plan.md)
 

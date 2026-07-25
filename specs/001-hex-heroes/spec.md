@@ -1,8 +1,7 @@
-# Feature Specification: Hex Heroes — A Heroes of Might & Magic Tribute
+# Feature Specification: Hex Heroes
 
-*(Working title "Hex Heroes" — a browser tribute inspired by Heroes of
-Might & Magic's hex tactical combat and hero/army/resource loop. Not
-affiliated with or branded as the original franchise; repo path
+*(A browser-based hex tactical combat and hero/army/resource strategy
+game. Not affiliated with or branded as any other franchise; repo path
 `heroes-mm` is unchanged.)*
 
 **Feature branch**: `001-hex-heroes`
@@ -18,7 +17,7 @@ creature dwellings, and fight neutral monster stacks guarding them. When
 two armies collide (hero vs. monster stack, or hero vs. hero), play
 switches to a separate **tactical hex battlefield** screen — a smaller hex
 grid where each army's creature stacks take turns moving and attacking,
-in the classic Heroes of Might & Magic combat style. Victory on the
+in a classic tactical hex-combat style. Victory on the
 adventure map comes from defeating the enemy hero's army in direct combat,
 or — if neither hero finds the other — from having the strongest kingdom
 (mines + dwellings + army value) when the day limit is reached.
@@ -136,7 +135,7 @@ watching an auto-resolve.
 - Clicking an enemy stack that's already adjacent (or that a ranged stack
   can target from anywhere on the field with no obstruction — v1 has no
   battlefield obstacles, see Non-goals) attacks it directly: damage is
-  computed from the classic Heroes of Might & Magic attack/defense-skew
+  computed from a classic tactical-strategy attack/defense-skew
   formula (see plan.md), casualties are removed from the losing stack,
   and — for melee attacks against a stack that hasn't already retaliated
   this round — the defender retaliates automatically for reduced-but-real

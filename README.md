@@ -1,6 +1,6 @@
 # ⚔️ Hex Heroes
 
-A free, browser-based tribute to Heroes of Might & Magic — no build step,
+A free, browser-based hex-map fantasy strategy game — no build step,
 no accounts, deployed to GitHub Pages. Move your hero across a hex
 adventure map, capture resource mines and creature dwellings, recruit an
 army and learn spells at your Castle, besiege the enemy's own Castle, and
@@ -8,7 +8,7 @@ fight tactical hex battles against an AI opponent.
 
 ## How to play
 
-1. Pick a hero type (Marshal / Warlord / Sentinel — different starting
+1. Pick a faction (Human / Orc / Undead / Enkantos — different starting
    army and Attack/Defense split), then **Start Game**. You and an AI
    opponent start at opposite corners of a 15×11 hex map.
 2. Click a hex to move your hero there (pathfound automatically). Each hex
@@ -107,7 +107,7 @@ The site is fully static — no build step.
 ```bash
 python3 -m http.server 8000   # any static server works
 # open http://localhost:8000
-node --test tests/*.test.mjs   # rules-engine unit tests (150 tests)
+node --test tests/*.test.mjs   # rules-engine unit tests (156 tests)
 ```
 
 ## Design docs (SDD)

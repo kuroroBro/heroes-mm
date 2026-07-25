@@ -1,4 +1,4 @@
-# Implementation Plan: Hex Heroes — A Heroes of Might & Magic Tribute
+# Implementation Plan: Hex Heroes
 
 **Spec**: [spec.md](./spec.md)
 
@@ -159,7 +159,7 @@ speed / dmg / ranged / growthPerDay:
 
 Each creature tier ≥3 that has a dwelling on the map (v1 map places one
 dwelling per tier 3/5/7/9, guarded by 2× that tier's own creature as a
-classic-HoMM-style self-guard) and one Gold Mine + one of each other
+classic tactical-strategy self-guard) and one Gold Mine + one of each other
 resource mine, laid out across the fixed 15×11 map, symmetric-ish between
 the two Keep corners so neither hero has a structural advantage.
 
@@ -169,7 +169,7 @@ When multiplayer is added, it follows every sibling game's exact pattern:
 host-authoritative state, PeerJS/WebRTC over the public broker, a
 `redactState` step before broadcast. The interesting design question is
 *what* gets redacted — unlike the party games (which hide one secret
-answer), a HoMM-style game's natural hidden information is fog-of-war
+answer), this genre's natural hidden information is fog-of-war
 (each player shouldn't see the other's unexplored territory or exact army
 composition). v1 deliberately has no fog-of-war (spec.md Non-goals)
 specifically so that adding it later is additive (a new visibility layer

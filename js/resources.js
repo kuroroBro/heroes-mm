@@ -1,8 +1,9 @@
 // Content: the 7 classic resources and their mine daily yields. Originally
-// lifted straight from HoMM3's own mine economy (2/day wood+ore, 1/day for
-// the rest), but HoMM3 games routinely run 100+ turns — at that pace
-// against this map's exactly one mine of each non-gold resource (not per
-// hero), v1's 30-day limit made Castle-building costs (BUILD_COST below)
+// lifted straight from a classic tactical-strategy mine economy (2/day
+// wood+ore, 1/day for the rest), but games in that genre routinely run
+// 100+ turns — at that pace against this map's exactly one mine of each
+// non-gold resource (not per hero), v1's 30-day limit made Castle-building
+// costs (BUILD_COST below)
 // take longer to afford than the entire game lasts. Every non-gold yield
 // has since been scaled up off that original baseline (wood/ore 5x to
 // match BUILD_COST's biggest sinks, then every non-gold resource — wood/
@@ -21,8 +22,8 @@ export const MINE_YIELD = {
 };
 
 // Baseline gold a hero's own Keep produces every day just for being
-// owned, same as HoMM3's Town Hall — on top of, not instead of, any gold
-// mines actually captured.
+// owned, same as a classic Town Hall building — on top of, not instead
+// of, any gold mines actually captured.
 export const KEEP_GOLD_YIELD = 500;
 
 export function emptyResourcePool() {

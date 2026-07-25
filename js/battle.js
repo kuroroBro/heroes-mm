@@ -248,7 +248,7 @@ function advanceTurn(state) {
   }
 }
 
-// Damage formula: plan.md Decision #2 (HoMM3's attack/defense skew,
+// Damage formula: plan.md Decision #2 (classic attack/defense skew,
 // capped multiplier).
 export function computeDamage(attackerStack, defenderStack, rng) {
   const attackerCreature = getCreature(attackerStack.creatureTypeId);
