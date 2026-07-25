@@ -59,6 +59,43 @@ test('aiSelectTarget picks a winnable guarded target when nothing free is availa
   assert.deepEqual(target, weakGuard);
 });
 
+test('aiSelectTarget never treats a hex the enemy hero is standing on as a free/winnable mine target', () => {
+  // The enemy hero can be standing on an unowned, unguarded mine (just
+  // passing through, or having captured it) without that changing what
+  // hex their hero occupies. Before this was fixed, that hex still
+  // looked like a perfectly safe "free capture" to the free-target scan,
+  // so the AI would walk toward it and moveHero would redirect that into
+  // an un-power-checked hero-vs-hero fight (its collision check fires
+  // before any mine-specific logic).
+  const mineHex = { q: 2, r: 0 };
+  const state = adventureFixture({
+    army: [{ creatureTypeId: 'peasant', count: 1 }], // very weak vs. default enemy (5 pikeman)
+    enemyPos: mineHex, // enemy hero is standing directly on the mine
+    hexes: [
+      [mineHex, { type: 'mine', resource: 'gold', ownerId: null }],
+    ],
+  });
+  const target = aiSelectTarget(state, 'ai');
+  assert.notDeepEqual(target, mineHex);
+  assert.equal(target, null); // and not strong enough to engage the hero directly either
+});
+
+test('aiSelectTarget still engages a beatable enemy hero even when they happen to be standing on a mine', () => {
+  // The fix above must not block the legitimate, properly power-checked
+  // enemyPos fallback -- only the un-power-checked free/winnable mine
+  // scan. A strong-enough AI should still go for it via that fallback.
+  const mineHex = { q: 2, r: 0 };
+  const state = adventureFixture({
+    army: [{ creatureTypeId: 'dragon', count: 10 }], // overwhelming vs. default enemy (5 pikeman)
+    enemyPos: mineHex,
+    hexes: [
+      [mineHex, { type: 'mine', resource: 'gold', ownerId: null }],
+    ],
+  });
+  const target = aiSelectTarget(state, 'ai');
+  assert.deepEqual(target, mineHex);
+});
+
 test('aiSelectTarget refuses a guarded target it cannot beat, and refuses to fall back to a stronger enemy hero', () => {
   const toughGuard = { q: 2, r: 0 };
   const enemyPos = { q: 9, r: 9 };

@@ -68,6 +68,15 @@ export function aiSelectTarget(state, owner) {
 
   for (const [k, occupant] of state.hexes) {
     const hex = hexFromKey(k);
+    // The enemy hero can be standing on any object hex (a mine/dwelling
+    // they're passing through or already captured, even their own Keep)
+    // without it changing ownership — moveHero's hero-collision check
+    // fires before any object-specific logic. Treating that hex as a
+    // free/winnable/siege target here would walk the AI straight into a
+    // hero-vs-hero fight it never power-checked for (that gate only
+    // lives in the enemyPos fallback below); skip it entirely so
+    // engaging the enemy hero only ever happens through that one path.
+    if (equals(enemyHero.position, hex)) continue;
     const d = distance(hero.position, hex);
 
     if (occupant.type === 'keep') {
