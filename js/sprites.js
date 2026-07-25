@@ -1,15 +1,14 @@
 // Shared spriteId -> image path lookup (plan.md "Custom art", spec.md
 // FR-3). Swapping in generated art later means changing paths here only.
 //
-// specs/005-castle-factions note: all 28 creatures and all 4 hero tokens
-// now have real art — the 11 new Human/Orc/Undead creatures and the new
-// Enkantos hero token were generated via image-gen once the local Codex
-// CLI was upgraded (an earlier pass hit a hard version-mismatch error
-// against every one of these); Enkantos's 7 creatures are real art
-// copied directly from pinoy-board (plan.md Decision #3). The 18 new
-// dwelling icons are still flat placeholder SVGs
-// (scripts/gen-placeholder-sprites.mjs's style) — that wasn't part of
-// this retry, only the creature/hero sprites that had actually failed.
+// specs/005-castle-factions note: all 28 creatures, all 4 hero tokens,
+// and all 28 dwelling icons now have real art — the 11 new Human/Orc/
+// Undead creatures, the new Enkantos hero token, and the 18 new dwelling
+// icons were all generated via image-gen once the local Codex CLI was
+// upgraded (an earlier pass hit a hard version-mismatch error against
+// every one of these); Enkantos's 7 creatures (and 6 of its 7 attack
+// effects) are real art copied directly from pinoy-board (plan.md
+// Decision #3).
 
 const OBJECT_SPRITES = {
   'mine-gold': 'images/objects/mine-gold.svg',
@@ -30,34 +29,34 @@ const OBJECT_SPRITES = {
   'dwelling-peasant': 'images/objects/dwelling-peasant.png',
   'dwelling-pikeman': 'images/objects/dwelling-pikeman.png',
   'dwelling-archer': 'images/objects/dwelling-archer.png',
-  'dwelling-swordsman': 'images/objects/dwelling-swordsman.svg',
+  'dwelling-swordsman': 'images/objects/dwelling-swordsman.png',
   'dwelling-griffin': 'images/objects/dwelling-griffin.png',
-  'dwelling-cavalier': 'images/objects/dwelling-cavalier.svg',
+  'dwelling-cavalier': 'images/objects/dwelling-cavalier.png',
   'dwelling-dragon': 'images/objects/dwelling-dragon.png',
   // Orc
-  'dwelling-goblin': 'images/objects/dwelling-goblin.svg',
+  'dwelling-goblin': 'images/objects/dwelling-goblin.png',
   'dwelling-wolf': 'images/objects/dwelling-wolf.png',
   'dwelling-orc': 'images/objects/dwelling-orc.png',
-  'dwelling-orc-chieftain': 'images/objects/dwelling-orc-chieftain.svg',
+  'dwelling-orc-chieftain': 'images/objects/dwelling-orc-chieftain.png',
   'dwelling-ogre': 'images/objects/dwelling-ogre.png',
   'dwelling-troll': 'images/objects/dwelling-troll.png',
-  'dwelling-behemoth': 'images/objects/dwelling-behemoth.svg',
+  'dwelling-behemoth': 'images/objects/dwelling-behemoth.png',
   // Undead
   'dwelling-skeleton': 'images/objects/dwelling-skeleton.png',
-  'dwelling-zombie': 'images/objects/dwelling-zombie.svg',
-  'dwelling-ghost': 'images/objects/dwelling-ghost.svg',
-  'dwelling-wraith': 'images/objects/dwelling-wraith.svg',
-  'dwelling-vampire': 'images/objects/dwelling-vampire.svg',
-  'dwelling-lich': 'images/objects/dwelling-lich.svg',
-  'dwelling-bone-dragon': 'images/objects/dwelling-bone-dragon.svg',
+  'dwelling-zombie': 'images/objects/dwelling-zombie.png',
+  'dwelling-ghost': 'images/objects/dwelling-ghost.png',
+  'dwelling-wraith': 'images/objects/dwelling-wraith.png',
+  'dwelling-vampire': 'images/objects/dwelling-vampire.png',
+  'dwelling-lich': 'images/objects/dwelling-lich.png',
+  'dwelling-bone-dragon': 'images/objects/dwelling-bone-dragon.png',
   // Enkantos
-  'dwelling-duwende': 'images/objects/dwelling-duwende.svg',
-  'dwelling-santilmo': 'images/objects/dwelling-santilmo.svg',
-  'dwelling-manananggal': 'images/objects/dwelling-manananggal.svg',
-  'dwelling-tikbalang': 'images/objects/dwelling-tikbalang.svg',
-  'dwelling-aswang': 'images/objects/dwelling-aswang.svg',
-  'dwelling-kapre': 'images/objects/dwelling-kapre.svg',
-  'dwelling-bakunawa': 'images/objects/dwelling-bakunawa.svg',
+  'dwelling-duwende': 'images/objects/dwelling-duwende.png',
+  'dwelling-santilmo': 'images/objects/dwelling-santilmo.png',
+  'dwelling-manananggal': 'images/objects/dwelling-manananggal.png',
+  'dwelling-tikbalang': 'images/objects/dwelling-tikbalang.png',
+  'dwelling-aswang': 'images/objects/dwelling-aswang.png',
+  'dwelling-kapre': 'images/objects/dwelling-kapre.png',
+  'dwelling-bakunawa': 'images/objects/dwelling-bakunawa.png',
 };
 
 const CREATURE_SPRITES = {
