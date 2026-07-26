@@ -952,6 +952,7 @@ function renderCastleSpells(hero) {
         <div class="castle-row-detail">${effectSummary} · mana cost: ${spell.manaCost}</div>`;
     } else {
       info.innerHTML = `<div class="castle-row-name">${spell.name}</div>
+        <div class="castle-row-detail">${effectSummary} · mana cost: ${spell.manaCost}</div>
         <div class="castle-row-detail">Not learned — learn cost: ${formatCost(spell.learnCost)}</div>`;
     }
 
