@@ -1192,7 +1192,12 @@ function renderBattleSpellPanel(state, active, owner) {
     return;
   }
 
-  $('battle-mana').textContent = hero.mana;
+  // state.heroSides[side].mana is the live, in-battle figure that
+  // castSpell actually decrements; adventureState's hero.mana is only a
+  // pre-battle snapshot that doesn't get synced back until the battle
+  // ends (resolveBattleOutcome), so displaying it here would leave the
+  // mana pill frozen at its pre-battle value for the whole fight.
+  $('battle-mana').textContent = state.heroSides[side].mana;
   $('battle-mana-max').textContent = hero.manaMax;
 
   const wrap = $('battle-spell-buttons');
