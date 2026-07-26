@@ -113,7 +113,7 @@ The site is fully static — no build step.
 ```bash
 python3 -m http.server 8000   # any static server works
 # open http://localhost:8000
-node --test tests/*.test.mjs   # rules-engine unit tests (165 tests)
+node --test tests/*.test.mjs   # rules-engine unit tests (175 tests)
 ```
 
 ## Design docs (SDD)
@@ -136,7 +136,9 @@ Enkantos) of 7 creatures each, chosen at setup in place of the old
 hero-type pick, and
 [`specs/006-sunborn-faction/`](specs/006-sunborn-faction/) for the 5th
 faction (Sunborn, a fire/light order with a Phoenix at tier 7) added on
-top of that same shape.
+top of that same shape, and
+[`specs/007-town-hall-upgrade/`](specs/007-town-hall-upgrade/) for the
+Castle's 3-level Town Hall gold-income upgrade.
 
 Unlike this workspace's other party games, this one has no networking
 yet — v1 is a single-device hero-vs-AI game. Multiplayer, following the

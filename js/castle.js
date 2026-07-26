@@ -121,6 +121,23 @@ export const BUILD_COST = {
   phoenix: { gold: 8100, gems: 16 },
 };
 
+// Town Hall (specs/007-town-hall-upgrade) — a permanent, hero-scoped
+// upgrade to the daily gold a hero's own Keep produces (adventure.js's
+// endDay adds townHallGoldBonus() on top of the flat KEEP_GOLD_YIELD
+// every day, same "baseline + upgrade" shape RECRUIT_COST/BUILD_COST use
+// for creatures). Index = level; level 0 is the un-upgraded baseline (no
+// bonus, no cost). Costs scale up alongside the bonus, following the
+// same wood/ore-early, gold+scarce-resource-later pattern every other
+// Castle cost table already uses.
+export const TOWN_HALL_MAX_LEVEL = 3;
+export const TOWN_HALL_GOLD_BONUS = [0, 300, 700, 1200];
+export const TOWN_HALL_UPGRADE_COST = [
+  null,
+  { gold: 800, wood: 150 },
+  { gold: 2500, ore: 150, crystal: 3 },
+  { gold: 5000, gems: 5, crystal: 5 },
+];
+
 // The hero's own faction's 7 creatureTypeIds, in tier order (specs/005-
 // castle-factions spec.md FR-3) — the Castle screen's main list, and what
 // chooseAiCastleActions (ai.js) scopes its build/recruit loop to, so an
@@ -130,7 +147,7 @@ export function castleRosterFor(hero) {
 }
 
 export function initCastle() {
-  return { unlocked: new Set(), pool: {}, built: new Set() };
+  return { unlocked: new Set(), pool: {}, built: new Set(), townHallLevel: 0 };
 }
 
 export function isUnlocked(hero, creatureTypeId) {
@@ -193,6 +210,31 @@ export function buildDwelling(state, owner, creatureTypeId) {
   payCost(hero.resources, BUILD_COST[creatureTypeId], 1);
   unlock(hero, creatureTypeId);
   hero.castle.built.add(creatureTypeId);
+  return true;
+}
+
+// Current daily gold bonus from the hero's Town Hall level — added on top
+// of the flat KEEP_GOLD_YIELD by adventure.js's endDay, not instead of it.
+export function townHallGoldBonus(hero) {
+  return TOWN_HALL_GOLD_BONUS[hero.castle.townHallLevel];
+}
+
+export function canAffordTownHallUpgrade(hero) {
+  const next = hero.castle.townHallLevel + 1;
+  if (next > TOWN_HALL_MAX_LEVEL) return false;
+  return canAfford(hero.resources, TOWN_HALL_UPGRADE_COST[next], 1);
+}
+
+// All-or-nothing: deducts the next level's full cost and increments
+// townHallLevel by exactly 1 (never skips a level, even with resources
+// to spare for more), or changes nothing and returns false — exact
+// mirror of buildDwelling/learnSpell.
+export function upgradeTownHall(state, owner) {
+  const hero = state.heroes[owner];
+  if (!canAffordTownHallUpgrade(hero)) return false;
+  const next = hero.castle.townHallLevel + 1;
+  payCost(hero.resources, TOWN_HALL_UPGRADE_COST[next], 1);
+  hero.castle.townHallLevel = next;
   return true;
 }
 

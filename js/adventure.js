@@ -9,7 +9,7 @@ import { getCreature } from './creatures.js';
 import { RESOURCES, emptyResourcePool, MINE_YIELD, KEEP_GOLD_YIELD } from './resources.js';
 import { MAP_WIDTH, MAP_HEIGHT, MAP_OBJECTS, KEEP_PLAYER, KEEP_AI } from './mapObjects.js';
 import { MAX_ARMY_SLOTS, armyValue } from './army.js';
-import { initCastle, unlock, accrueGrowth, revokeCaptureUnlock } from './castle.js';
+import { initCastle, unlock, accrueGrowth, revokeCaptureUnlock, townHallGoldBonus } from './castle.js';
 
 export { MAX_ARMY_SLOTS };
 export const MOVEMENT_PER_DAY = 8;
@@ -362,6 +362,10 @@ function applyLevelUps(hero) {
 // Dwelling scoring is sourced from the hero's Castle (unique unlocked
 // creature types), not owned map hexes, since a tier can now be unlocked
 // by building it — see specs/002-castle-creatures/plan.md Decision #5.
+// The "castle" component also counts Town Hall level (specs/007-town-
+// hall-upgrade) at 20 pts/level — a similar per-investment value to a
+// single unlocked creature type (15 pts), reflecting that the upgrade
+// costs a comparable amount of resources for a comparable strategic bet.
 // Returns the 3 components separately (not just the total) so the UI can
 // show its work on the game-over screen instead of just a bare number.
 export function kingdomScoreBreakdown(state, owner) {
@@ -370,7 +374,7 @@ export function kingdomScoreBreakdown(state, owner) {
     if (occupant.ownerId === owner && occupant.type === 'mine') mines += 10;
   }
   const hero = state.heroes[owner];
-  const castle = hero.castle.unlocked.size * 15;
+  const castle = hero.castle.unlocked.size * 15 + hero.castle.townHallLevel * 20;
   let army = 0;
   for (const stack of hero.army) {
     army += stack.count * getCreature(stack.creatureTypeId).tier;
@@ -394,7 +398,8 @@ export function endDay(state) {
     if (occupant.type === 'mine') {
       state.heroes[occupant.ownerId].resources[occupant.resource] += MINE_YIELD[occupant.resource];
     } else if (occupant.type === 'keep') {
-      state.heroes[occupant.ownerId].resources.gold += KEEP_GOLD_YIELD;
+      const hero = state.heroes[occupant.ownerId];
+      hero.resources.gold += KEEP_GOLD_YIELD + townHallGoldBonus(hero);
     }
   }
 

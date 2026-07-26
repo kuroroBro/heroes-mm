@@ -19,6 +19,7 @@ import {
 import {
   isUnlocked, canAffordBuild, buildDwelling, maxRecruitable, recruitCreatures, BUILD_COST, RECRUIT_COST,
   knowsSpell, canAffordLearnSpell, learnSpell, castleRosterFor,
+  townHallGoldBonus, canAffordTownHallUpgrade, upgradeTownHall, TOWN_HALL_MAX_LEVEL, TOWN_HALL_UPGRADE_COST,
 } from './castle.js';
 import { SPELLS } from './spells.js';
 import { loadSettings, saveSettings, DEFAULT_SETTINGS } from './storage.js';
@@ -923,6 +924,8 @@ function renderCastle() {
   const hero = adventureState.heroes.player;
   $('castle-resources').textContent = RESOURCES.map((r) => `${r}: ${hero.resources[r]}`).join(' · ');
 
+  renderCastleTownHall(hero);
+
   const roster = castleRosterFor(hero);
   const list = $('castle-rows');
   list.innerHTML = '';
@@ -944,6 +947,52 @@ function renderCastle() {
   }
 
   renderCastleSpells(hero);
+}
+
+// Town Hall (specs/007-town-hall-upgrade) — a single row, not a list,
+// since there's exactly one upgrade track per hero (unlike creatures/
+// spells, which each have many independent entries).
+function renderCastleTownHall(hero) {
+  const list = $('castle-townhall-rows');
+  list.innerHTML = '';
+  const level = hero.castle.townHallLevel;
+  const maxed = level >= TOWN_HALL_MAX_LEVEL;
+
+  const li = document.createElement('li');
+  // 'locked' (dimmed, matches every other castle-row's convention) only
+  // for "nothing invested yet" — level 1-2 is already earning its bonus,
+  // so it reads as normal/active, not as an incomplete/locked state.
+  li.className = 'castle-row' + (level === 0 ? ' locked' : '');
+
+  const info = document.createElement('div');
+  info.className = 'castle-row-info';
+  const currentBonus = townHallGoldBonus(hero);
+  info.innerHTML = `<div class="castle-row-name">Town Hall (Level ${level} / ${TOWN_HALL_MAX_LEVEL})</div>
+    <div class="castle-row-detail">+${currentBonus} gold/day (total Keep yield: ${KEEP_GOLD_YIELD + currentBonus}/day)</div>`;
+  if (!maxed) {
+    const nextBonus = townHallGoldBonus({ castle: { townHallLevel: level + 1 } });
+    const detail = document.createElement('div');
+    detail.className = 'castle-row-detail';
+    detail.textContent = `Upgrade to Level ${level + 1} for +${nextBonus - currentBonus} more gold/day (${nextBonus} total) — cost: ${formatCost(TOWN_HALL_UPGRADE_COST[level + 1])}`;
+    info.appendChild(detail);
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'castle-row-actions';
+  if (!maxed) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-secondary btn-small';
+    btn.textContent = 'Upgrade';
+    btn.disabled = !canAffordTownHallUpgrade(hero);
+    btn.addEventListener('click', () => {
+      if (upgradeTownHall(adventureState, 'player')) renderCastle();
+    });
+    actions.append(btn);
+  }
+
+  li.append(info, actions);
+  list.appendChild(li);
 }
 
 function renderCastleSpells(hero) {

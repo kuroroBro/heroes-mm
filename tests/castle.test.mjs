@@ -5,6 +5,8 @@ import {
   initCastle, isUnlocked, unlock, accrueGrowth, canAffordBuild, buildDwelling,
   maxRecruitable, canAffordRecruit, recruitCreatures, BUILD_COST, RECRUIT_COST,
   knowsSpell, canAffordLearnSpell, learnSpell, revokeCaptureUnlock,
+  townHallGoldBonus, canAffordTownHallUpgrade, upgradeTownHall,
+  TOWN_HALL_MAX_LEVEL, TOWN_HALL_GOLD_BONUS, TOWN_HALL_UPGRADE_COST,
 } from '../js/castle.js';
 import { SPELLS } from '../js/spells.js';
 
@@ -207,5 +209,53 @@ test('learnSpell fails outright and changes nothing when unaffordable', () => {
   assert.equal(ok, false);
   assert.equal(hero.resources.gold, 1);
   assert.equal(knowsSpell(hero, 'magicArrow'), false);
+});
+
+// ---------------------------------------------------------------------
+// Town Hall (specs/007-town-hall-upgrade)
+// ---------------------------------------------------------------------
+
+test('a fresh hero starts at Town Hall level 0 with no gold bonus', () => {
+  const hero = freshHero();
+  assert.equal(hero.castle.townHallLevel, 0);
+  assert.equal(townHallGoldBonus(hero), 0);
+});
+
+test('canAffordTownHallUpgrade is false when short on any required resource', () => {
+  const hero = freshHero({ resources: { ...emptyResourcePool(), gold: TOWN_HALL_UPGRADE_COST[1].gold - 1, wood: TOWN_HALL_UPGRADE_COST[1].wood } });
+  assert.equal(canAffordTownHallUpgrade(hero), false);
+});
+
+test('upgradeTownHall deducts the full level-1 cost and advances the level by exactly 1', () => {
+  const hero = freshHero({ resources: { ...emptyResourcePool(), gold: 5000, wood: 500 } });
+  const state = { heroes: { player: hero } };
+  const ok = upgradeTownHall(state, 'player');
+  assert.ok(ok);
+  assert.equal(hero.castle.townHallLevel, 1);
+  assert.equal(hero.resources.gold, 5000 - TOWN_HALL_UPGRADE_COST[1].gold);
+  assert.equal(hero.resources.wood, 500 - TOWN_HALL_UPGRADE_COST[1].wood);
+  assert.equal(townHallGoldBonus(hero), TOWN_HALL_GOLD_BONUS[1]);
+});
+
+test('upgradeTownHall fails outright and changes nothing when unaffordable', () => {
+  const hero = freshHero({ resources: { ...emptyResourcePool(), gold: 1 } });
+  const state = { heroes: { player: hero } };
+  const ok = upgradeTownHall(state, 'player');
+  assert.equal(ok, false);
+  assert.equal(hero.resources.gold, 1);
+  assert.equal(hero.castle.townHallLevel, 0);
+});
+
+test('upgradeTownHall never skips a level, even with resources to spare for more', () => {
+  const hero = freshHero({ resources: { ...emptyResourcePool(), gold: 999999, wood: 999999, ore: 999999, crystal: 999999, gems: 999999 } });
+  const state = { heroes: { player: hero } };
+  upgradeTownHall(state, 'player');
+  assert.equal(hero.castle.townHallLevel, 1);
+});
+
+test('canAffordTownHallUpgrade is false once already at TOWN_HALL_MAX_LEVEL, even with resources to spare', () => {
+  const hero = freshHero({ resources: { ...emptyResourcePool(), gold: 999999, wood: 999999, ore: 999999, crystal: 999999, gems: 999999 } });
+  hero.castle.townHallLevel = TOWN_HALL_MAX_LEVEL;
+  assert.equal(canAffordTownHallUpgrade(hero), false);
 });
 

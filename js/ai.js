@@ -9,6 +9,7 @@ import { getCreature, creaturePower } from './creatures.js';
 import {
   canAffordBuild, buildDwelling, maxRecruitable, recruitCreatures,
   canAffordLearnSpell, learnSpell, castleRosterFor,
+  canAffordTownHallUpgrade, upgradeTownHall,
 } from './castle.js';
 import { canCastSpell, isObstacleHex } from './battle.js';
 import { SPELLS } from './spells.js';
@@ -245,18 +246,22 @@ export function chooseAiCatapultTarget(state, side) {
 }
 
 // Castle management (specs/002-castle-creatures/plan.md Decision #4,
-// extended by specs/003-siege-and-spells): once per AI day, build the
-// lowest-tier not-yet-unlocked dwelling it can currently afford (at most
-// one build/day, so the AI's economy grows smoothly rather than dumping
-// days of saved resources into one build the instant it can afford it),
-// then greedily recruit lowest-tier-first from its pool until nothing
-// more is affordable or the army is full, then likewise learn the
-// cheapest not-yet-known spell it can afford (at most one/day, same
-// smoothing rationale as the dwelling build). Mutates `state` directly
-// (state.heroes[owner].resources/castle/army/spellbook), same
-// mutate-in-place convention as adventure.js/battle.js.
+// extended by specs/003-siege-and-spells and specs/007-town-hall-
+// upgrade): once per AI day, first upgrade its Town Hall if it can
+// afford the next level (an economy investment that compounds over the
+// rest of the game, so it's worth prioritizing over any single dwelling
+// build), then build the lowest-tier not-yet-unlocked dwelling it can
+// currently afford (at most one build/day, so the AI's economy grows
+// smoothly rather than dumping days of saved resources into one build
+// the instant it can afford it), then greedily recruit lowest-tier-first
+// from its pool until nothing more is affordable or the army is full,
+// then likewise learn the cheapest not-yet-known spell it can afford (at
+// most one/day, same smoothing rationale as the dwelling build). Mutates
+// `state` directly (state.heroes[owner].resources/castle/army/
+// spellbook), same mutate-in-place convention as adventure.js/battle.js.
 export function chooseAiCastleActions(state, owner) {
   const hero = state.heroes[owner];
+  if (canAffordTownHallUpgrade(hero)) upgradeTownHall(state, owner);
   const roster = castleRosterFor(hero);
   for (const creatureTypeId of roster) {
     if (canAffordBuild(hero, creatureTypeId)) {

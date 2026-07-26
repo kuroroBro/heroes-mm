@@ -8,7 +8,7 @@ import {
   HERO_DEFEATS_TO_LOSE,
 } from '../js/adventure.js';
 import { KEEP_PLAYER, KEEP_AI } from '../js/mapObjects.js';
-import { unlock, learnSpell, recruitCreatures, maxRecruitable, buildDwelling } from '../js/castle.js';
+import { unlock, learnSpell, recruitCreatures, maxRecruitable, buildDwelling, upgradeTownHall } from '../js/castle.js';
 
 function freshState() {
   return createAdventure('human', 'orc');
@@ -381,6 +381,28 @@ test('endDay refills movement and pays out owned mine income', () => {
   assert.equal(state.heroes.player.resources.gold, before + 1000 + 500);
   assert.equal(state.heroes.player.castle.pool.peasant, 8); // growthPerDay accrues via endDay too
   assert.equal(state.day, 2);
+});
+
+test('endDay adds the Town Hall gold bonus on top of the flat Keep yield, not instead of it', () => {
+  const state = freshState();
+  state.heroes.player.resources.gold = 5000;
+  state.heroes.player.resources.wood = 500;
+  const ok = upgradeTownHall(state, 'player');
+  assert.ok(ok);
+
+  const before = state.heroes.player.resources.gold;
+  endDay(state);
+  // Level-1 bonus is +300/day, on top of the usual 500 flat Keep yield.
+  assert.equal(state.heroes.player.resources.gold, before + 500 + 300);
+});
+
+test('kingdomScoreBreakdown\'s castle component includes 20 pts per Town Hall level', () => {
+  const state = freshState();
+  const before = kingdomScoreBreakdown(state, 'player').castle;
+  state.heroes.player.resources.gold = 5000;
+  state.heroes.player.resources.wood = 500;
+  upgradeTownHall(state, 'player');
+  assert.equal(kingdomScoreBreakdown(state, 'player').castle - before, 20);
 });
 
 test('endDay pays out baseline Keep gold income for both heroes, mine or no mine', () => {
