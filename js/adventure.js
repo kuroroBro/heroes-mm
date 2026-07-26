@@ -250,6 +250,31 @@ export function getPendingBattleArmies(state) {
   return { attackerArmy, attackerBonus, defenderArmy, defenderBonus };
 }
 
+// A player-requested decisive tie-breaker offered at the Day-limit (in
+// place of just accepting the Kingdom Score verdict) — see main.js's
+// offerFinalBattle. Unlike a normal hero-vs-hero fight (resolveBattleOutcome
+// above, gated behind defeatsToWin — losing once usually just sends a
+// hero home to respawn), winning this one always ends the game
+// immediately, regardless of either hero's defeatsSuffered so far;
+// that's the whole point of offering it as an alternative to the score.
+export function resolveFinalBattleOutcome(state, winnerSide, survivingStacks, remainingMana = {}) {
+  const pending = state.pendingBattle;
+  if (!pending) return;
+  const attackerOwner = pending.attackerOwner;
+  const defenderOwner = pending.defenderOwner;
+  const attacker = state.heroes[attackerOwner];
+  if (remainingMana.attacker != null) attacker.mana = remainingMana.attacker;
+  const defender = state.heroes[defenderOwner];
+  if (remainingMana.defender != null) defender.mana = remainingMana.defender;
+
+  const winnerOwner = winnerSide === 'attacker' ? attackerOwner : defenderOwner;
+  state.heroes[winnerOwner].army = survivingStacks.map((s) => ({ ...s }));
+  state.phase = 'gameover';
+  state.winner = winnerOwner;
+  state.winReason = 'finalBattle';
+  state.pendingBattle = null;
+}
+
 // Apply a finished battle's outcome. `winnerSide` is 'attacker' or
 // 'defender' (battle.js's vocabulary); `survivingStacks` is that side's
 // stacks with post-battle counts. `remainingMana` (specs/003-siege-and-
@@ -337,17 +362,24 @@ function applyLevelUps(hero) {
 // Dwelling scoring is sourced from the hero's Castle (unique unlocked
 // creature types), not owned map hexes, since a tier can now be unlocked
 // by building it — see specs/002-castle-creatures/plan.md Decision #5.
-export function kingdomScore(state, owner) {
-  let score = 0;
+// Returns the 3 components separately (not just the total) so the UI can
+// show its work on the game-over screen instead of just a bare number.
+export function kingdomScoreBreakdown(state, owner) {
+  let mines = 0;
   for (const occupant of state.hexes.values()) {
-    if (occupant.ownerId === owner && occupant.type === 'mine') score += 10;
+    if (occupant.ownerId === owner && occupant.type === 'mine') mines += 10;
   }
   const hero = state.heroes[owner];
-  score += hero.castle.unlocked.size * 15;
+  const castle = hero.castle.unlocked.size * 15;
+  let army = 0;
   for (const stack of hero.army) {
-    score += stack.count * getCreature(stack.creatureTypeId).tier;
+    army += stack.count * getCreature(stack.creatureTypeId).tier;
   }
-  return score;
+  return { mines, castle, army, total: mines + castle + army };
+}
+
+export function kingdomScore(state, owner) {
+  return kingdomScoreBreakdown(state, owner).total;
 }
 
 // Advance to the next day: refill movement, pay out mine income and

@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { key } from '../js/hexgrid.js';
 import {
-  createAdventure, moveHero, endDay, kingdomScore, getPendingBattleArmies,
-  resolveBattleOutcome, planMoveTowards, MOVEMENT_PER_DAY, DAY_LIMIT,
+  createAdventure, moveHero, endDay, kingdomScore, kingdomScoreBreakdown, getPendingBattleArmies,
+  resolveBattleOutcome, resolveFinalBattleOutcome, planMoveTowards, MOVEMENT_PER_DAY, DAY_LIMIT,
   MANA_MAX, HOME_TURF_DEFENSE_BONUS, SIEGE_LOOT_FRACTION, isSiegeBattle,
   HERO_DEFEATS_TO_LOSE,
 } from '../js/adventure.js';
@@ -412,6 +412,43 @@ test('kingdomScore awards 15 points per unique unlocked creature type', () => {
   assert.equal(kingdomScore(state, 'player') - before, 15);
   unlock(state.heroes.player, 'dragon'); // idempotent — no double count
   assert.equal(kingdomScore(state, 'player') - before, 15);
+});
+
+test('kingdomScoreBreakdown\'s 3 components sum to the same total kingdomScore returns', () => {
+  const state = freshState();
+  let goldHex = null;
+  for (const [k, obj] of state.hexes) {
+    if (obj.type === 'mine' && obj.resource === 'gold') {
+      const [q, r] = k.split(',').map(Number);
+      goldHex = { q, r };
+    }
+  }
+  state.hexes.get(key(goldHex)).ownerId = 'player'; // 1 owned mine, no fight needed
+  unlock(state.heroes.player, 'dragon');
+
+  const b = kingdomScoreBreakdown(state, 'player');
+  assert.equal(b.mines, 10);
+  assert.equal(b.castle, 15);
+  assert.ok(b.army > 0); // starting army alone contributes
+  assert.equal(b.mines + b.castle + b.army, b.total);
+  assert.equal(b.total, kingdomScore(state, 'player'));
+});
+
+test('resolveFinalBattleOutcome always ends the game immediately, ignoring defeatsToWin entirely', () => {
+  const state = createAdventure('human', 'orc', { defeatsToWin: 5 }); // a high bar a single fight would never clear normally
+  const aiPos = state.heroes.ai.position;
+  state.heroes.player.position = { q: aiPos.q - 1, r: aiPos.r };
+  state.heroes.player.movementLeft = MOVEMENT_PER_DAY;
+  moveHero(state, 'player', aiPos);
+  assert.equal(state.pendingBattle.defenderKind, 'hero');
+
+  resolveFinalBattleOutcome(state, 'attacker', [{ creatureTypeId: 'pikeman', count: 4 }]);
+
+  assert.equal(state.phase, 'gameover');
+  assert.equal(state.winner, 'player');
+  assert.equal(state.winReason, 'finalBattle');
+  assert.equal(state.heroes.ai.defeatsSuffered, 0); // untouched — this path never increments it
+  assert.deepEqual(state.heroes.player.army, [{ creatureTypeId: 'pikeman', count: 4 }]);
 });
 
 test('planMoveTowards returns the farthest reachable hex when the target is beyond today\'s movement', () => {

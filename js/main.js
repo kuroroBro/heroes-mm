@@ -4,8 +4,8 @@ import { getCreature } from './creatures.js';
 import { FACTIONS, getFaction } from './factions.js';
 import { spritePath } from './sprites.js';
 import {
-  createAdventure, moveHero, endDay, kingdomScore, getPendingBattleArmies,
-  resolveBattleOutcome, planMoveTowards, isSiegeBattle,
+  createAdventure, moveHero, endDay, kingdomScore, kingdomScoreBreakdown, getPendingBattleArmies,
+  resolveBattleOutcome, resolveFinalBattleOutcome, planMoveTowards, isSiegeBattle,
 } from './adventure.js';
 import {
   createBattle, getStack, moveStack, attackStack, waitStack, defendStack,
@@ -40,6 +40,7 @@ let battleContext = null; // { attackerOwner, defenderOwner } captured at battle
 let aiDayInProgress = false;
 let pendingSpellCast = null; // spellId awaiting a battlefield target click, or null
 let pendingCatapultTarget = false; // true while picking a wall hex to fire the catapult at
+let isFinalBattle = false; // true while battleState is the Day-limit final-battle tie-breaker
 // Hex-key -> pixel-center map from the battle map's most recent render,
 // and its hex size — set at the end of renderBattleMap, read afterward by
 // showAttackEffects/showSpellEffect (called just after a render, never
@@ -761,7 +762,15 @@ function finishAiDay() {
   endDay(adventureState);
   chooseAiCastleActions(adventureState, 'ai');
   renderAdventure();
-  if (adventureState.phase === 'gameover') showGameOver();
+  if (adventureState.phase === 'gameover') {
+    // Combat-decided endings (hero-vs-hero defeat count reached) already
+    // got their closure from the battle scroll — go straight to the
+    // score screen. Only the Day-limit/Kingdom-Score ending offers a
+    // final-battle alternative, since that's the only ending the player
+    // hasn't already had a direct hand in via combat.
+    if (adventureState.winReason === 'score') offerFinalBattle();
+    else showGameOver();
+  }
 }
 
 // ==================================================================
@@ -1093,6 +1102,11 @@ function finishBattleIfOver() {
   const winnerSide = battleState.winnerSide;
   const survivors = survivingStacks(battleState, winnerSide);
 
+  if (isFinalBattle) {
+    finishFinalBattle(winnerSide, survivors);
+    return;
+  }
+
   // Captured *before* resolveBattleOutcome mutates everything (it clears
   // state.pendingBattle, overwrites occupant.ownerId/guard, changes
   // hero.xp/level, etc.) so describeBattleOutcome below can still narrate
@@ -1126,6 +1140,68 @@ function proceedAfterBattle() {
   showScreen('screen-adventure');
   renderAdventure();
   if (aiDayInProgress) continueAiDay();
+}
+
+// The Day-limit final-battle tie-breaker (see offerFinalBattle) always
+// ends the game on the spot — no defeatsToWin gate, no respawn, and no
+// "did this involve the player" check (it always does: only the player
+// can trigger this offer). Narrated with its own scroll (not
+// describeBattleOutcome, which assumes the normal defeatsSuffered-gated
+// hero-vs-hero flow and would misreport "Nth defeat" text here).
+function finishFinalBattle(winnerSide, survivors) {
+  const pending = adventureState.pendingBattle;
+  const winnerOwner = winnerSide === 'attacker' ? pending.attackerOwner : pending.defenderOwner;
+  resolveFinalBattleOutcome(adventureState, winnerSide, survivors, remainingManaFrom(battleState));
+  battleState = null;
+  battleContext = null;
+  pendingSpellCast = null;
+  pendingCatapultTarget = false;
+  isFinalBattle = false;
+
+  const lines = winnerOwner === 'player'
+    ? ['Victory! Your final battle settles it — you win the war.']
+    : ["Defeat! The AI's final battle victory settles it — the war is lost."];
+  showScrollNotification(lines, showGameOver);
+}
+
+// Offered once the Day-limit is reached (finishAiDay, in place of jumping
+// straight to showGameOver) — lets the player fight one decisive
+// hero-vs-hero battle instead of just accepting the Kingdom Score
+// verdict. Declining proceeds exactly as before this feature existed.
+function offerFinalBattle() {
+  const state = adventureState;
+  const playerScore = kingdomScore(state, 'player');
+  const aiScore = kingdomScore(state, 'ai');
+  const verdict = playerScore === aiScore ? "it's a draw"
+    : playerScore > aiScore ? 'you win' : 'the AI wins';
+  $('final-battle-summary').textContent =
+    `Kingdom Score says ${verdict} (You: ${playerScore} pts, AI: ${aiScore} pts).`;
+  $('dialog-final-battle-offer').showModal();
+}
+
+$('btn-final-battle-no').addEventListener('click', () => {
+  $('dialog-final-battle-offer').close();
+  showGameOver();
+});
+
+$('btn-final-battle-yes').addEventListener('click', () => {
+  $('dialog-final-battle-offer').close();
+  startFinalBattle();
+});
+
+// Teleports the player's hero onto the AI hero's current hex (bypassing
+// normal movement/pathing entirely — this is a special one-off duel, not
+// a real move) and starts an interactive hero-vs-hero fight through the
+// exact same createBattle/startBattleFromPending path a normal encounter
+// uses, so siege treatment (home-turf bonus, wall) still applies
+// correctly if the AI happens to be standing at their own Keep.
+function startFinalBattle() {
+  const state = adventureState;
+  const hex = state.heroes.ai.position;
+  state.phase = 'battle';
+  state.pendingBattle = { attackerOwner: 'player', defenderKind: 'hero', defenderOwner: 'ai', hex };
+  isFinalBattle = true;
+  startBattleFromPending();
 }
 
 // A hex's guarded-object fields relevant to narrating a just-finished
@@ -1836,15 +1912,22 @@ function showGameOver() {
   }
   reason.textContent = state.winReason === 'combat'
     ? `Decided by direct combat — the loser's hero was defeated ${state.defeatsToWin} times.`
-    : `Day ${state.dayLimit} reached — decided by Kingdom Score.`;
+    : state.winReason === 'finalBattle'
+      ? `Day ${state.dayLimit} reached — decided by a final battle instead of Kingdom Score.`
+      : `Day ${state.dayLimit} reached — decided by Kingdom Score.`;
 
   const scores = $('gameover-scores');
   scores.innerHTML = '';
   for (const owner of ['player', 'ai']) {
-    const span = document.createElement('span');
     const label = owner === 'player' ? 'You' : 'AI';
-    span.textContent = `${label}: ${kingdomScore(state, owner)} pts`;
-    scores.appendChild(span);
+    const b = kingdomScoreBreakdown(state, owner);
+    const div = document.createElement('div');
+    div.className = 'final-score-owner';
+    div.innerHTML = `
+      <div class="final-score-total">${label}: ${b.total} pts</div>
+      <div class="final-score-detail">${b.mines} mines + ${b.castle} castle + ${b.army} army</div>
+    `;
+    scores.appendChild(div);
   }
 }
 

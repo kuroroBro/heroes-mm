@@ -765,11 +765,13 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
 
 .final-scores {
   display: flex;
-  gap: 1rem;
+  gap: 2rem;
   justify-content: center;
   margin-top: 0.75rem;
-  font-weight: 700;
 }
+.final-score-owner { text-align: center; }
+.final-score-total { font-weight: 700; }
+.final-score-detail { color: var(--text-dim); font-size: 0.8rem; margin-top: 0.2rem; }
 .muted { color: var(--text-dim); }
 
 @media (max-width: 640px) {

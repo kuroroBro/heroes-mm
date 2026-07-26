@@ -83,8 +83,10 @@
           sends that hero home to respawn with a fresh starting army, same
           as losing to a neutral guard — no permanent loss until the
           final one. Otherwise, the game ends at Day 30 and whoever has
-          the higher Kingdom Score (mines, creature tiers,
-          army) wins.</li>
+          the higher Kingdom Score (mines, creature tiers, army) wins —
+          unless you'd rather settle it with one decisive final battle
+          instead, which you'll be offered the choice to fight right
+          then.</li>
       </ol>
       <button id="btn-close-how-to-play" class="btn btn-primary btn-big">Got it!</button>
     </div>
@@ -243,6 +245,22 @@
       <button id="btn-play-again" class="btn btn-primary btn-big">🔁 New Game</button>
     </div>
   </section>
+
+  <!-- ============ FINAL BATTLE OFFER ============ -->
+  <dialog id="dialog-final-battle-offer">
+    <div class="htp-body">
+      <h2>Day 30 reached</h2>
+      <p id="final-battle-summary" class="muted"></p>
+      <p class="muted">You can accept the Kingdom Score result, or fight one
+        decisive final battle against the AI's hero to settle it instead —
+        whoever wins that fight wins the game outright, regardless of the
+        score above or how many defeats either hero has taken so far.</p>
+      <div class="home-actions">
+        <button id="btn-final-battle-yes" type="button" class="btn btn-primary btn-big">⚔️ Fight a Final Battle</button>
+        <button id="btn-final-battle-no" type="button" class="btn btn-secondary btn-big">Accept Kingdom Score Result</button>
+      </div>
+    </div>
+  </dialog>
 
   <!-- ============ SCROLL NOTIFICATION ============ -->
   <div id="scroll-notification" class="scroll-overlay" hidden>
