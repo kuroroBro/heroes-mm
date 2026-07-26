@@ -105,6 +105,25 @@ export const MAP_OBJECTS = [
   { hex: at(7, 21), object: { type: 'dwelling', creatureTypeId: 'ash-drake', ownerId: null, spriteId: 'dwelling-ash-drake', guard: { creatureTypeId: 'ash-drake', count: 5 } } },
   { hex: at(1, 21), object: { type: 'dwelling', creatureTypeId: 'salamander', ownerId: null, spriteId: 'dwelling-salamander', guard: { creatureTypeId: 'salamander', count: 8 } } },
 
+  // Yokai (specs/008-yokai-faction) — a 6th, again-unpaired faction (the
+  // 2 existing "unpaired" ones, Sunborn and Yokai, don't mirror each
+  // other either — each was independently placed to keep its *own* 7
+  // dwellings balanced). Same brute-force-search approach as Sunborn:
+  // candidate hexes in the top-right/bottom-left corners' remaining open
+  // rows (avoiding every hex Sunborn/mines/monsters/treasures already
+  // occupy), searched for the 7-position subset with zero difference
+  // between total distance from KEEP_PLAYER and KEEP_AI (found one:
+  // 111==111). Amaterasu and Kitsune (the two strongest) sit at the two
+  // most individually-balanced positions of that subset, same rationale
+  // as Phoenix/Cinder Wyvern above.
+  { hex: at(16, 1), object: { type: 'dwelling', creatureTypeId: 'amaterasu', ownerId: null, spriteId: 'dwelling-amaterasu', guard: { creatureTypeId: 'amaterasu', count: 2 } } },
+  { hex: at(19, 1), object: { type: 'dwelling', creatureTypeId: 'kitsune', ownerId: null, spriteId: 'dwelling-kitsune', guard: { creatureTypeId: 'kitsune', count: 3 } } },
+  { hex: at(22, 1), object: { type: 'dwelling', creatureTypeId: 'orochi', ownerId: null, spriteId: 'dwelling-orochi', guard: { creatureTypeId: 'orochi', count: 4 } } },
+  { hex: at(19, 8), object: { type: 'dwelling', creatureTypeId: 'onmyoji', ownerId: null, spriteId: 'dwelling-onmyoji', guard: { creatureTypeId: 'onmyoji', count: 5 } } },
+  { hex: at(25, 1), object: { type: 'dwelling', creatureTypeId: 'oni', ownerId: null, spriteId: 'dwelling-oni', guard: { creatureTypeId: 'oni', count: 6 } } },
+  { hex: at(4, 20), object: { type: 'dwelling', creatureTypeId: 'tengu', ownerId: null, spriteId: 'dwelling-tengu', guard: { creatureTypeId: 'tengu', count: 8 } } },
+  { hex: at(1, 16), object: { type: 'dwelling', creatureTypeId: 'kappa', ownerId: null, spriteId: 'dwelling-kappa', guard: { creatureTypeId: 'kappa', count: 10 } } },
+
   // Wandering monsters (no dwelling — one-time XP + tile clear, not
   // recruitable). Was 2, now 6, spanning easy to very hard.
   { hex: at(4, 19), object: { type: 'monster', spriteId: 'monster', guard: { creatureTypeId: 'peasant', count: 12 } } },

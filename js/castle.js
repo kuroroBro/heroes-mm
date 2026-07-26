@@ -21,10 +21,11 @@ const POOL_CAP_MULT = 10; // same ceiling v1 used for per-hex dwelling garrison
 // per unit; BUILD_COST is a one-time sink to unlock a tier without ever
 // capturing its map dwelling. Every reused creature's cost (peasant
 // through dragon) is unchanged from before specs/005; the 18 entries
-// added there and the 7 Sunborn entries added by specs/006-sunborn-
-// faction are priced against their creaturePower()-equivalent neighbor
-// in creatures.js's tables, following the same wood/ore-early,
-// gold+scarce-resource-later pattern the original 10 already established.
+// added there, the 7 Sunborn entries (specs/006), and the 7 Yokai
+// entries (specs/008) are priced against their creaturePower()-
+// equivalent neighbor in creatures.js's tables, following the same
+// wood/ore-early, gold+scarce-resource-later pattern the original 10
+// already established.
 export const RECRUIT_COST = {
   // Human
   peasant: { gold: 30 },
@@ -70,6 +71,18 @@ export const RECRUIT_COST = {
   'sun-priest': { gold: 850, sulfur: 1 },
   'cinder-wyvern': { gold: 1700, sulfur: 2 },
   phoenix: { gold: 3100, gems: 2, sulfur: 2 },
+  // Yokai (specs/008-yokai-faction) — priced a step above Sunborn's
+  // equivalent tier throughout (same "don't undercut the newest existing
+  // faction" convention), leaning on crystal/gems as its characteristic
+  // scarce resource (mystical/spiritual, fitting an Onmyoji-and-kami
+  // order) rather than sulfur.
+  kappa: { gold: 60 },
+  tengu: { gold: 240 },
+  oni: { gold: 380 },
+  onmyoji: { gold: 600, crystal: 1 },
+  orochi: { gold: 880, crystal: 1 },
+  kitsune: { gold: 1750, gems: 2 },
+  amaterasu: { gold: 3200, gems: 3, crystal: 2 },
 };
 
 // wood/ore figures sized against MINE_YIELD (now 20/day each) so early
@@ -119,6 +132,14 @@ export const BUILD_COST = {
   'sun-priest': { gold: 2900, sulfur: 9 },
   'cinder-wyvern': { gold: 4200, gems: 9 },
   phoenix: { gold: 8100, gems: 16 },
+  // Yokai
+  kappa: { wood: 90 },
+  tengu: { wood: 200, ore: 115 },
+  oni: { wood: 310, ore: 195 },
+  onmyoji: { gold: 2400, crystal: 6 },
+  orochi: { gold: 3000, crystal: 9 },
+  kitsune: { gold: 4300, gems: 10 },
+  amaterasu: { gold: 8300, gems: 17 },
 };
 
 // Town Hall (specs/007-town-hall-upgrade) — a permanent, hero-scoped

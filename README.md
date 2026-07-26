@@ -8,9 +8,10 @@ fight tactical hex battles against an AI opponent.
 
 ## How to play
 
-1. Pick a faction (Human / Orc / Undead / Enkantos / Sunborn — different
-   starting army and Attack/Defense split), then **Start Game**. You and
-   an AI opponent start at opposite corners of a 15×11 hex map.
+1. Pick a faction (Human / Orc / Undead / Enkantos / Sunborn / Yokai —
+   different starting army and Attack/Defense split), then **Start
+   Game**. You and an AI opponent start at opposite corners of a 15×11
+   hex map.
 2. Click a hex to move your hero there (pathfound automatically). Each hex
    costs 1 of your day's movement points (8/day).
 3. Walking onto an **unguarded** mine or dwelling captures it instantly —
@@ -93,10 +94,12 @@ Santilmo) has its own dedicated generated attack-effect icon — no
 creature falls back to the generic effect sprite anymore.
 
 `specs/006-sunborn-faction` added a 5th faction, **Sunborn** — a
-fire-and-light order with a Phoenix at tier 7 (35 creatures total now,
-across 5 factions) — fully real art from the start (no placeholder
-phase): 7 creature portraits, a hero token, 7 dwelling icons, and 7
-attack-effect icons, all generated via `image-gen`.
+fire-and-light order with a Phoenix at tier 7 — and
+`specs/008-yokai-faction` added a 6th, **Yokai** — Japanese folklore,
+culminating in Amaterasu (the sun goddess) at tier 7 (42 creatures total
+now, across 6 factions). Both fully real art from the start (no
+placeholder phase): 7 creature portraits, a hero token, 7 dwelling
+icons, and 7 attack-effect icons each, all generated via `image-gen`.
 
 ## Deploying to GitHub Pages
 
@@ -136,9 +139,11 @@ Enkantos) of 7 creatures each, chosen at setup in place of the old
 hero-type pick, and
 [`specs/006-sunborn-faction/`](specs/006-sunborn-faction/) for the 5th
 faction (Sunborn, a fire/light order with a Phoenix at tier 7) added on
-top of that same shape, and
+top of that same shape,
 [`specs/007-town-hall-upgrade/`](specs/007-town-hall-upgrade/) for the
-Castle's 3-level Town Hall gold-income upgrade.
+Castle's 3-level Town Hall gold-income upgrade, and
+[`specs/008-yokai-faction/`](specs/008-yokai-faction/) for the 6th
+faction (Yokai, Japanese folklore culminating in Amaterasu at tier 7).
 
 Unlike this workspace's other party games, this one has no networking
 yet — v1 is a single-device hero-vs-AI game. Multiplayer, following the

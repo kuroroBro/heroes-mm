@@ -65,6 +65,14 @@ const OBJECT_SPRITES = {
   'dwelling-sun-priest': 'images/objects/dwelling-sun-priest.png',
   'dwelling-cinder-wyvern': 'images/objects/dwelling-cinder-wyvern.png',
   'dwelling-phoenix': 'images/objects/dwelling-phoenix.png',
+  // Yokai (specs/008-yokai-faction)
+  'dwelling-kappa': 'images/objects/dwelling-kappa.png',
+  'dwelling-tengu': 'images/objects/dwelling-tengu.png',
+  'dwelling-oni': 'images/objects/dwelling-oni.png',
+  'dwelling-onmyoji': 'images/objects/dwelling-onmyoji.png',
+  'dwelling-orochi': 'images/objects/dwelling-orochi.png',
+  'dwelling-kitsune': 'images/objects/dwelling-kitsune.png',
+  'dwelling-amaterasu': 'images/objects/dwelling-amaterasu.png',
 };
 
 const CREATURE_SPRITES = {
@@ -108,6 +116,14 @@ const CREATURE_SPRITES = {
   'creature-sun-priest': 'images/creatures/sun-priest.png',
   'creature-cinder-wyvern': 'images/creatures/cinder-wyvern.png',
   'creature-phoenix': 'images/creatures/phoenix.png',
+  // Yokai (specs/008-yokai-faction) — original content, not reused
+  'creature-kappa': 'images/creatures/kappa.png',
+  'creature-tengu': 'images/creatures/tengu.png',
+  'creature-oni': 'images/creatures/oni.png',
+  'creature-onmyoji': 'images/creatures/onmyoji.png',
+  'creature-orochi': 'images/creatures/orochi.png',
+  'creature-kitsune': 'images/creatures/kitsune.png',
+  'creature-amaterasu': 'images/creatures/amaterasu.png',
 };
 
 const HERO_SPRITES = {
@@ -116,6 +132,7 @@ const HERO_SPRITES = {
   'hero-undead': 'images/creatures/hero-undead.png',
   'hero-enkantos': 'images/creatures/hero-enkantos.png',
   'hero-sunborn': 'images/creatures/hero-sunborn.png',
+  'hero-yokai': 'images/creatures/hero-yokai.png',
 };
 
 // The battle screen's flying attack-effect icon (js/main.js's
@@ -167,6 +184,14 @@ const ATTACK_SPRITES = {
   'attack-sun-priest': 'images/creatures/attacks/attack-sun-priest.png',
   'attack-cinder-wyvern': 'images/creatures/attacks/attack-cinder-wyvern.png',
   'attack-phoenix': 'images/creatures/attacks/attack-phoenix.png',
+  // Yokai (specs/008-yokai-faction)
+  'attack-kappa': 'images/creatures/attacks/attack-kappa.png',
+  'attack-tengu': 'images/creatures/attacks/attack-tengu.png',
+  'attack-oni': 'images/creatures/attacks/attack-oni.png',
+  'attack-onmyoji': 'images/creatures/attacks/attack-onmyoji.png',
+  'attack-orochi': 'images/creatures/attacks/attack-orochi.png',
+  'attack-kitsune': 'images/creatures/attacks/attack-kitsune.png',
+  'attack-amaterasu': 'images/creatures/attacks/attack-amaterasu.png',
 };
 
 const ALL_SPRITES = { ...OBJECT_SPRITES, ...CREATURE_SPRITES, ...HERO_SPRITES, ...ATTACK_SPRITES };

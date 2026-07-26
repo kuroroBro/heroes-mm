@@ -1,12 +1,13 @@
-// Content: 35 creatures across 5 factions, 7 tiers each (specs/005-castle-
+// Content: 42 creatures across 6 factions, 7 tiers each (specs/005-castle-
 // factions plan.md Decision #2; Sunborn added by specs/006-sunborn-
-// faction). Stats are a deliberately simplified classic tactical-strategy
-// baseline — see specs/001-hex-heroes/plan.md's Decision #2 for how
-// attack/defense/hp/dmg are used in the battle damage formula, and
-// spec.md's Non-goals for what's intentionally NOT modeled (special
-// abilities, flying, etc.). `tier` is per-faction (1-7), not a single
-// global scale — a Human tier 4 and an Orc tier 4 aren't meant to be
-// equal-power, any more than they were across the old 1-10 scale.
+// faction; Yokai added by specs/008-yokai-faction). Stats are a
+// deliberately simplified classic tactical-strategy baseline — see
+// specs/001-hex-heroes/plan.md's Decision #2 for how attack/defense/hp/
+// dmg are used in the battle damage formula, and spec.md's Non-goals for
+// what's intentionally NOT modeled (special abilities, flying, etc.).
+// `tier` is per-faction (1-7), not a single global scale — a Human tier 4
+// and an Orc tier 4 aren't meant to be equal-power, any more than they
+// were across the old 1-10 scale.
 //
 // The original 10 (peasant, pikeman, archer, wolf, orc, griffin, ogre,
 // skeleton, troll, dragon) keep their exact stats verbatim, just sorted
@@ -15,8 +16,10 @@
 // pinoy-board project's creature names/flavor/art (specs/005-castle-
 // factions/plan.md Decision #3) — its relative power ordering loosely
 // follows pinoy-board's own combat/enemies.ts maxHp/attackPower for the
-// same creatures. Sunborn (specs/006) is original content, not reused
-// from anywhere.
+// same creatures. Sunborn (specs/006) and Yokai (specs/008, Japanese
+// folklore — a real, still-practiced mythology, same "genuine culture,
+// dignified treatment" precedent Enkantos already set with Bakunawa) are
+// both original content, not reused from anywhere.
 
 export const CREATURES = [
   // --- Human (Order/chivalry) ---
@@ -71,6 +74,21 @@ export const CREATURES = [
   { id: 'sun-priest', name: 'Sun Priest', factionId: 'sunborn', tier: 5, attack: 10, defense: 8, hp: 30, speed: 5, dmgMin: 5, dmgMax: 8, ranged: true, growthPerDay: 3, spriteId: 'creature-sun-priest' },
   { id: 'cinder-wyvern', name: 'Cinder Wyvern', factionId: 'sunborn', tier: 6, attack: 13, defense: 11, hp: 65, speed: 7, dmgMin: 7, dmgMax: 11, ranged: false, growthPerDay: 2, spriteId: 'creature-cinder-wyvern' },
   { id: 'phoenix', name: 'Phoenix', factionId: 'sunborn', tier: 7, attack: 19, defense: 14, hp: 165, speed: 10, dmgMin: 18, dmgMax: 30, ranged: false, growthPerDay: 1, spriteId: 'creature-phoenix' },
+
+  // --- Yokai (Japanese folklore, specs/008-yokai-faction) — original
+  // content, stats interpolated against the tier-by-tier average of all
+  // 5 existing factions at each tier (see plan.md's stat table).
+  // Amaterasu (the sun goddess, a real and still-venerated Shinto deity)
+  // is depicted with the same dignified, majestic treatment Enkantos's
+  // Bakunawa already established for a genuine mythological figure —
+  // powerful and reverent, not menacing or mocking.
+  { id: 'kappa', name: 'Kappa', factionId: 'yokai', tier: 1, attack: 3, defense: 3, hp: 6, speed: 4, dmgMin: 1, dmgMax: 3, ranged: false, growthPerDay: 9, spriteId: 'creature-kappa' },
+  { id: 'tengu', name: 'Tengu', factionId: 'yokai', tier: 2, attack: 7, defense: 4, hp: 10, speed: 7, dmgMin: 2, dmgMax: 4, ranged: false, growthPerDay: 6, spriteId: 'creature-tengu' },
+  { id: 'oni', name: 'Oni', factionId: 'yokai', tier: 3, attack: 9, defense: 6, hp: 16, speed: 5, dmgMin: 3, dmgMax: 6, ranged: false, growthPerDay: 5, spriteId: 'creature-oni' },
+  { id: 'onmyoji', name: 'Onmyoji', factionId: 'yokai', tier: 4, attack: 9, defense: 7, hp: 24, speed: 5, dmgMin: 4, dmgMax: 7, ranged: true, growthPerDay: 4, spriteId: 'creature-onmyoji' },
+  { id: 'orochi', name: 'Orochi', factionId: 'yokai', tier: 5, attack: 13, defense: 10, hp: 45, speed: 5, dmgMin: 6, dmgMax: 10, ranged: false, growthPerDay: 3, spriteId: 'creature-orochi' },
+  { id: 'kitsune', name: 'Kitsune', factionId: 'yokai', tier: 6, attack: 13, defense: 11, hp: 60, speed: 8, dmgMin: 7, dmgMax: 10, ranged: true, growthPerDay: 2, spriteId: 'creature-kitsune' },
+  { id: 'amaterasu', name: 'Amaterasu', factionId: 'yokai', tier: 7, attack: 17, defense: 17, hp: 190, speed: 8, dmgMin: 20, dmgMax: 32, ranged: true, growthPerDay: 1, spriteId: 'creature-amaterasu' },
 ];
 
 const BY_ID = new Map(CREATURES.map((c) => [c.id, c]));

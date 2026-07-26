@@ -1,16 +1,20 @@
-// Content: the 5 factions (specs/005-castle-factions plan.md Decision #1
+// Content: the 6 factions (specs/005-castle-factions plan.md Decision #1
 // — replaces js/heroTypes.js; picking a faction at setup is now the same
 // choice hero type used to be, so this is that same shape plus a
-// `creatures` roster; Sunborn added by specs/006-sunborn-faction). No
-// spell/magic stats — see specs/001-hex-heroes/spec.md Non-goals.
+// `creatures` roster; Sunborn added by specs/006-sunborn-faction, Yokai
+// by specs/008-yokai-faction). No spell/magic stats — see specs/001-hex-
+// heroes/spec.md Non-goals.
 //
 // Human and Orc reuse the old Marshal/Warlord stat splits and starting
 // armies verbatim; Undead reuses the old Sentinel's stat split (fitting —
 // durable, low-attack) but not its starting army, since Peasant/Griffin
-// now belong to Human. Enkantos and Sunborn have no hero-type precedent
-// to reuse; Sunborn's (2 attack, 3 defense) split is deliberately
-// distinct from all 4 existing combos (2/2, 3/1, 1/3, 3/0) — a
-// disciplined, defense-leaning order rather than a glass cannon.
+// now belong to Human. Enkantos, Sunborn, and Yokai have no hero-type
+// precedent to reuse; Sunborn's (2 attack, 3 defense) split is
+// deliberately distinct from all 4 prior combos (2/2, 3/1, 1/3, 3/0) — a
+// disciplined, defense-leaning order rather than a glass cannon. Yokai's
+// (1 attack, 2 defense) is distinct again — a milder, more cunning-than-
+// martial archetype (fitting an Onmyoji-flavored order that leans on
+// magic more than raw combat stats).
 
 import { CREATURES } from './creatures.js';
 
@@ -69,6 +73,17 @@ export const FACTIONS = [
       { creatureTypeId: 'flame-dancer', count: 6 },
     ],
     spriteId: 'hero-sunborn',
+  },
+  {
+    id: 'yokai',
+    name: 'Yokai',
+    attack: 1,
+    defense: 2,
+    startingArmy: [
+      { creatureTypeId: 'tengu', count: 10 },
+      { creatureTypeId: 'oni', count: 6 },
+    ],
+    spriteId: 'hero-yokai',
   },
 ];
 
