@@ -137,6 +137,7 @@ $('btn-new-game').addEventListener('click', () => {
   renderHeroTypeCards();
   $('setup-defeats-to-win').value = String(settings.defeatsToWin);
   $('setup-ai-count').value = String(settings.aiCount);
+  $('setup-map-size').value = settings.mapSize;
   showScreen('screen-setup');
 });
 $('btn-setup-back').addEventListener('click', () => showScreen('screen-home'));
@@ -176,7 +177,9 @@ $('btn-start-game').addEventListener('click', () => {
   const defeatsToWin = Math.min(10, Math.max(1, Number.isFinite(rawDefeats) ? rawDefeats : DEFAULT_SETTINGS.defeatsToWin));
   const rawAiCount = Math.round(Number($('setup-ai-count').value));
   const aiCount = Math.min(3, Math.max(1, Number.isFinite(rawAiCount) ? rawAiCount : DEFAULT_SETTINGS.aiCount));
-  settings = { ...settings, heroTypeId: selectedHeroTypeId, defeatsToWin, aiCount };
+  const rawMapSize = $('setup-map-size').value;
+  const mapSize = ['x1', 'x2', 'x4'].includes(rawMapSize) ? rawMapSize : DEFAULT_SETTINGS.mapSize;
+  settings = { ...settings, heroTypeId: selectedHeroTypeId, defeatsToWin, aiCount, mapSize };
   saveSettings(settings);
   // Each AI opponent gets a distinct faction (never the player's own,
   // never repeated across AI) — shuffle the remaining factions and take
@@ -189,7 +192,7 @@ $('btn-start-game').addEventListener('click', () => {
     [otherTypes[i], otherTypes[j]] = [otherTypes[j], otherTypes[i]];
   }
   const aiHeroTypeIds = otherTypes.slice(0, aiCount).map((f) => f.id);
-  adventureState = createAdventure(selectedHeroTypeId, aiHeroTypeIds, { defeatsToWin });
+  adventureState = createAdventure(selectedHeroTypeId, aiHeroTypeIds, { defeatsToWin, mapSize });
   aiDayInProgress = false;
   resetInspectorUI();
   showScreen('screen-adventure');

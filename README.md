@@ -9,8 +9,9 @@ fight tactical hex battles against an AI opponent.
 ## How to play
 
 1. Pick a faction (Human / Orc / Undead / Enkantos / Sunborn / Yokai —
-   different starting army and Attack/Defense split) and how many AI
-   opponents join (1-3), then **Start Game**. Every hero gets a
+   different starting army and Attack/Defense split), how many AI
+   opponents join (1-3), and a map size (x1/x2/x4 — bigger maps have
+   proportionally more mines), then **Start Game**. Every hero gets a
    distinct faction and its own Keep in a different corner of the map.
 2. Click a hex to move your hero there (pathfound automatically). Each hex
    costs 1 of your day's movement points (8/day).
@@ -116,7 +117,7 @@ The site is fully static — no build step.
 ```bash
 python3 -m http.server 8000   # any static server works
 # open http://localhost:8000
-node --test tests/*.test.mjs   # rules-engine unit tests (187 tests)
+node --test tests/*.test.mjs   # rules-engine unit tests (194 tests)
 ```
 
 ## Design docs (SDD)
@@ -144,8 +145,10 @@ top of that same shape,
 Castle's 3-level Town Hall gold-income upgrade,
 [`specs/008-yokai-faction/`](specs/008-yokai-faction/) for the 6th
 faction (Yokai, Japanese folklore culminating in Amaterasu at tier 7),
-and [`specs/009-multi-ai-opponents/`](specs/009-multi-ai-opponents/)
-for choosing 1-3 AI opponents at setup instead of always exactly one.
+[`specs/009-multi-ai-opponents/`](specs/009-multi-ai-opponents/)
+for choosing 1-3 AI opponents at setup instead of always exactly one,
+and [`specs/010-map-size/`](specs/010-map-size/) for the x1/x2/x4 map
+size choice, each bigger tier adding proportionally more mines.
 
 Unlike this workspace's other party games, this one has no networking
 yet — v1 is a single-device hero-vs-AI(s) game (all AI opponents are

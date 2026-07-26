@@ -7,7 +7,7 @@ import {
   MANA_MAX, HOME_TURF_DEFENSE_BONUS, SIEGE_LOOT_FRACTION, isSiegeBattle,
   HERO_DEFEATS_TO_LOSE,
 } from '../js/adventure.js';
-import { KEEP_PLAYER, KEEP_AI, KEEP_AI2, KEEP_AI3 } from '../js/mapObjects.js';
+import { KEEP_PLAYER, KEEP_AI, KEEP_AI2, KEEP_AI3, MAP_WIDTH, MAP_HEIGHT, getMapLayout } from '../js/mapObjects.js';
 import { unlock, learnSpell, recruitCreatures, maxRecruitable, buildDwelling, upgradeTownHall } from '../js/castle.js';
 
 function freshState() {
@@ -783,4 +783,62 @@ test('endDay day-limit scoring is a draw when 2+ living heroes tie for the highe
   assert.equal(kingdomScore(state, 'player'), kingdomScore(state, 'ai2'));
   assert.equal(state.phase, 'gameover');
   assert.equal(state.winner, null);
+});
+
+// ---------------------------------------------------------------------
+// Map size (specs/010-map-size)
+// ---------------------------------------------------------------------
+
+test('createAdventure defaults to the x1 map, unchanged from before this feature', () => {
+  const state = createAdventure('human', 'orc');
+  assert.equal(state.mapWidth, MAP_WIDTH);
+  assert.equal(state.mapHeight, MAP_HEIGHT);
+  assert.deepEqual(state.keeps.player, KEEP_PLAYER);
+  assert.deepEqual(state.keeps.ai, KEEP_AI);
+});
+
+test('createAdventure with mapSize x2/x4 uses a larger board and moves the keeps to match', () => {
+  const x2 = createAdventure('human', 'orc', { mapSize: 'x2' });
+  const x2Layout = getMapLayout('x2');
+  assert.equal(x2.mapWidth, x2Layout.width);
+  assert.equal(x2.mapHeight, x2Layout.height);
+  assert.deepEqual(x2.heroes.player.position, x2Layout.keepPlayer);
+  assert.deepEqual(x2.heroes.ai.position, x2Layout.keepAi);
+
+  const x4 = createAdventure('human', 'orc', { mapSize: 'x4' });
+  const x4Layout = getMapLayout('x4');
+  assert.equal(x4.mapWidth, x4Layout.width);
+  assert.equal(x4.mapHeight, x4Layout.height);
+  assert.ok(x4Layout.width * x4Layout.height > x2Layout.width * x2Layout.height);
+});
+
+test('a bigger map has strictly more mines than x1, and the extra ones are tier-1/2 guarded', () => {
+  const TIER_12_CREATURES = new Set([
+    'peasant', 'pikeman', 'goblin', 'wolf', 'skeleton', 'zombie',
+    'duwende', 'santilmo', 'spark', 'salamander', 'kappa', 'tengu',
+  ]);
+  const x1Mines = getMapLayout('x1').objects.filter((o) => o.object.type === 'mine');
+  const x2Mines = getMapLayout('x2').objects.filter((o) => o.object.type === 'mine');
+  const x4Mines = getMapLayout('x4').objects.filter((o) => o.object.type === 'mine');
+  assert.ok(x2Mines.length > x1Mines.length);
+  assert.ok(x4Mines.length > x2Mines.length);
+
+  const x1MineKeys = new Set(getMapLayout('x1').objects.filter((o) => o.object.type === 'mine').map((o) => `${o.hex.q},${o.hex.r}`));
+  // Every guarded mine beyond x1's original count uses a real tier-1/2 creature id.
+  for (const layout of [x2Mines, x4Mines]) {
+    for (const mine of layout) {
+      if (mine.object.guard) assert.ok(TIER_12_CREATURES.has(mine.object.guard.creatureTypeId), `unexpected guard ${mine.object.guard.creatureTypeId}`);
+    }
+  }
+});
+
+test('moveHero respects the larger map bounds when mapSize is x2/x4', () => {
+  const state = createAdventure('human', 'orc', { mapSize: 'x4' });
+  const layout = getMapLayout('x4');
+  const farHex = { q: layout.width - 1, r: -Math.floor((layout.width - 1) / 2) + layout.height - 1 };
+  state.heroes.player.position = farHex;
+  state.heroes.player.movementLeft = 999;
+  const beyond = { q: layout.width, r: farHex.r };
+  const ok = moveHero(state, 'player', beyond);
+  assert.equal(ok, false); // out of bounds for this map's own width, even though it's much bigger than x1
 });

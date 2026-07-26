@@ -15,8 +15,9 @@ import path from 'node:path';
 import { CREATURES, getCreature } from '../js/creatures.js';
 import { FACTIONS, getFaction } from '../js/factions.js';
 import { RECRUIT_COST, BUILD_COST } from '../js/castle.js';
-import { MAP_OBJECTS } from '../js/mapObjects.js';
+import { MAP_OBJECTS, getMapLayout } from '../js/mapObjects.js';
 import { spritePath } from '../js/sprites.js';
+import { key, inRect } from '../js/hexgrid.js';
 
 const REPO_ROOT = path.resolve(fileURLToPath(import.meta.url), '../..');
 
@@ -93,3 +94,22 @@ test('every faction\'s starting army references real creatures it actually owns'
 test('getFaction throws for an unknown id, same as getCreature', () => {
   assert.throws(() => getFaction('nonexistent'));
 });
+
+// specs/010-map-size: x2/x4 layouts are hand-authored (a rescale + extra
+// mines, generated and fairness-checked by a throwaway script — see
+// mapObjects.js's own comment), but still deserve the same structural
+// sanity sweep every other piece of map content gets.
+for (const sizeId of ['x1', 'x2', 'x4']) {
+  test(`${sizeId} map layout: every hex is in-bounds and unique, every guard/dwelling references a real creature`, () => {
+    const layout = getMapLayout(sizeId);
+    const seen = new Set();
+    for (const { hex, object } of layout.objects) {
+      assert.ok(inRect(hex, layout.width, layout.height), `${sizeId}: hex out of bounds for ${object.type}`);
+      const k = key(hex);
+      assert.ok(!seen.has(k), `${sizeId}: duplicate hex ${k}`);
+      seen.add(k);
+      if (object.creatureTypeId) assert.doesNotThrow(() => getCreature(object.creatureTypeId));
+      if (object.guard) assert.doesNotThrow(() => getCreature(object.guard.creatureTypeId));
+    }
+  });
+}

@@ -7,7 +7,7 @@ import { key, equals, findPath, inRect } from './hexgrid.js';
 import { getFaction } from './factions.js';
 import { getCreature } from './creatures.js';
 import { RESOURCES, emptyResourcePool, MINE_YIELD, KEEP_GOLD_YIELD } from './resources.js';
-import { MAP_WIDTH, MAP_HEIGHT, MAP_OBJECTS, KEEP_PLAYER, KEEP_AI, KEEP_AI2, KEEP_AI3 } from './mapObjects.js';
+import { getMapLayout } from './mapObjects.js';
 import { MAX_ARMY_SLOTS, armyValue } from './army.js';
 import { initCastle, unlock, accrueGrowth, revokeCaptureUnlock, townHallGoldBonus } from './castle.js';
 
@@ -21,11 +21,12 @@ const XP_PER_LEVEL = 1000;
 const XP_PER_ARMY_VALUE = 2; // XP gained = defeated army value * this multiplier
 export const HERO_DEFEATS_TO_LOSE = 3; // a hero must lose 3 hero-vs-hero battles before the game ends
 
-const AI_KEEPS = { ai: KEEP_AI, ai2: KEEP_AI2, ai3: KEEP_AI3 };
-
-function homeKeep(owner) {
-  if (owner === 'player') return KEEP_PLAYER;
-  return AI_KEEPS[owner];
+// specs/010-map-size: keep positions now vary by map size, so they live on
+// `state.keeps` (set once in createAdventure) rather than as module-level
+// constants — homeKeep needs `state` for exactly the same reason
+// otherLivingOwners below already does.
+function homeKeep(state, owner) {
+  return state.keeps[owner];
 }
 
 // Every owner other than `owner` who hasn't been eliminated yet
@@ -39,12 +40,12 @@ function otherLivingOwners(state, owner) {
   return state.owners.filter((o) => o !== owner && !state.heroes[o].eliminated);
 }
 
-function createHero(owner, heroTypeId) {
+function createHero(owner, heroTypeId, position) {
   const heroType = getFaction(heroTypeId);
   return {
     heroTypeId,
     owner,
-    position: homeKeep(owner),
+    position,
     movementLeft: MOVEMENT_PER_DAY,
     movementMax: MOVEMENT_PER_DAY,
     level: 1,
@@ -75,30 +76,40 @@ function createHero(owner, heroTypeId) {
 // additive. `state.owners` is the full fixed list of every hero in this
 // game (`state.aiOwners` the AI subset of it) — iterate that instead of
 // a hardcoded ['player', 'ai'] anywhere state needs to touch every hero.
+//
+// `options.mapSize` (specs/010-map-size) is 'x1' (default, unchanged),
+// 'x2', or 'x4' — looked up once via getMapLayout and stored on
+// state.mapWidth/mapHeight/keeps, so every existing width/height/keep
+// reference throughout this module (inRect calls, homeKeep) already
+// works for any size without further changes.
 export function createAdventure(playerHeroTypeId, aiHeroTypeIdOrIds, options = {}) {
+  const layout = getMapLayout(options.mapSize);
   const aiHeroTypeIds = Array.isArray(aiHeroTypeIdOrIds) ? aiHeroTypeIdOrIds : [aiHeroTypeIdOrIds];
   const aiOwners = aiHeroTypeIds.map((_, i) => (i === 0 ? 'ai' : `ai${i + 1}`));
+  const keeps = { player: layout.keepPlayer, ai: layout.keepAi, ai2: layout.keepAi2, ai3: layout.keepAi3 };
 
   const hexes = new Map();
-  for (const { hex, object } of MAP_OBJECTS) {
+  for (const { hex, object } of layout.objects) {
     hexes.set(key(hex), structuredClone(object));
   }
   // The 2nd/3rd AI's keep only exists on the map at all when that AI is
-  // actually in this game (KEEP_AI2/KEEP_AI3 aren't in the static
-  // MAP_OBJECTS list for exactly this reason — see mapObjects.js).
+  // actually in this game (KEEP_AI2/KEEP_AI3-equivalents aren't in any
+  // size's static objects list for exactly this reason — see
+  // mapObjects.js).
   for (const owner of aiOwners) {
-    if (owner === 'ai') continue; // already in MAP_OBJECTS
-    hexes.set(key(AI_KEEPS[owner]), { type: 'keep', ownerId: owner, spriteId: 'keep' });
+    if (owner === 'ai') continue; // already in layout.objects
+    hexes.set(key(keeps[owner]), { type: 'keep', ownerId: owner, spriteId: 'keep' });
   }
 
-  const heroes = { player: createHero('player', playerHeroTypeId) };
-  aiOwners.forEach((owner, i) => { heroes[owner] = createHero(owner, aiHeroTypeIds[i]); });
+  const heroes = { player: createHero('player', playerHeroTypeId, keeps.player) };
+  aiOwners.forEach((owner, i) => { heroes[owner] = createHero(owner, aiHeroTypeIds[i], keeps[owner]); });
 
   return {
     day: 1,
     dayLimit: DAY_LIMIT,
-    mapWidth: MAP_WIDTH,
-    mapHeight: MAP_HEIGHT,
+    mapWidth: layout.width,
+    mapHeight: layout.height,
+    keeps,
     hexes,
     heroes,
     owners: ['player', ...aiOwners],
@@ -245,7 +256,7 @@ export function planMoveTowards(state, owner, targetHex) {
 export function isSiegeBattle(state) {
   const pending = state.pendingBattle;
   if (!pending) return false;
-  return pending.defenderKind === 'hero' && equals(pending.hex, homeKeep(pending.defenderOwner));
+  return pending.defenderKind === 'hero' && equals(pending.hex, homeKeep(state, pending.defenderOwner));
 }
 
 // Everything main.js needs from adventure.js to hand off to battle.js.
@@ -274,7 +285,7 @@ export function getPendingBattleArmies(state) {
     };
     // Home-turf defense bonus when this hero-vs-hero fight is happening
     // at the defender's own Keep (specs/003-siege-and-spells US-6).
-    if (equals(pending.hex, homeKeep(pending.defenderOwner))) {
+    if (equals(pending.hex, homeKeep(state, pending.defenderOwner))) {
       defenderBonus.defense += HOME_TURF_DEFENSE_BONUS;
     }
   } else {
@@ -357,7 +368,7 @@ export function resolveBattleOutcome(state, winnerSide, survivingStacks, remaini
     // Not yet the loser's final defeat — same respawn treatment as losing
     // to a neutral guard (US-6): fresh starting army and full mana at
     // home, and the adventure continues rather than ending outright.
-    loser.position = homeKeep(loserOwner);
+    loser.position = homeKeep(state, loserOwner);
     loser.army = getFaction(loser.heroTypeId).startingArmy.map((s) => ({ ...s }));
     loser.movementLeft = 0;
     loser.mana = loser.manaMax;
@@ -388,7 +399,7 @@ export function resolveBattleOutcome(state, winnerSide, survivingStacks, remaini
     // Hero's whole army was wiped by the neutral guard — respawn at home
     // (spec.md US-6), guard survives with updated (possibly reduced) count.
     if (occupant) occupant.guard = survivingStacks[0] ? { ...survivingStacks[0] } : null;
-    attacker.position = homeKeep(attackerOwner);
+    attacker.position = homeKeep(state, attackerOwner);
     attacker.army = getFaction(attacker.heroTypeId).startingArmy.map((s) => ({ ...s }));
     attacker.movementLeft = 0;
     attacker.mana = attacker.manaMax;

@@ -9,6 +9,7 @@ export const DEFAULT_SETTINGS = {
   legendCollapsed: false,
   defeatsToWin: 3, // keep in sync with adventure.js's HERO_DEFEATS_TO_LOSE
   aiCount: 1, // specs/009-multi-ai-opponents — 1-3 AI opponents
+  mapSize: 'x1', // specs/010-map-size — 'x1' | 'x2' | 'x4'
 };
 
 export function loadSettings() {

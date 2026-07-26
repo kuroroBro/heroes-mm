@@ -153,3 +153,259 @@ export const MAP_OBJECTS = [
   { hex: at(3, 17), object: { type: 'treasure', resource: 'ore', amount: 300, spriteId: 'treasure' } },
   { hex: at(26, 4), object: { type: 'treasure', resource: 'wood', amount: 300, spriteId: 'treasure' } },
 ];
+
+// --- Map size tiers (specs/010-map-size) ---------------------------------
+// x1 (everything above) is the original, still-default map — completely
+// unchanged, so the default game stays byte-identical to before this
+// feature, same principle specs/009-multi-ai-opponents used for AI count.
+// x2/x4 are new, larger layouts: every x1 hex (all 56 pieces of content,
+// including the 2 always-placed keeps) is linearly rescaled into the
+// bigger rectangle at the same *relative* position — preserving the
+// existing left/right mirror (player<->ai) and top/bottom placement
+// (ai2/ai3) — plus extra mine hexes scaled to the new area (14 extra for
+// x2, 42 extra for x4 — i.e. (multiplier-1)*2 per resource type, so mine
+// count itself scales with the map's own size multiplier), each guarded
+// by a tier-1 or tier-2 creature (cycling through all 6 factions' own
+// tier-1/2 units, not just Human peasant/pikeman, for variety) at the
+// same 6/5 guard counts the original wood/ore/crystal/mercury mines
+// already use — weak enough that the extra mines are an early, low-risk
+// economy boost on a bigger map, not a new hard obstacle.
+//
+// Generated + fairness-checked by a throwaway script (same workflow as
+// every map content addition since specs/006's plan.md): total hex
+// distance from each of the 4 possible keeps to all mine/dwelling/
+// monster/treasure content came out within ~4% of each other for both
+// tiers (x2: 1687-1756; x4: 3246-3350) — tighter than the ~6% baseline
+// already accepted for the x1 map's own 4-keep case — then hand-verified
+// for zero out-of-bounds hexes and zero coordinate collisions before
+// being written here.
+
+export const MAP_WIDTH_X2 = 42;
+export const MAP_HEIGHT_X2 = 31;
+export const KEEP_PLAYER_X2 = at(3, 14);
+export const KEEP_AI_X2 = at(38, 16);
+export const KEEP_AI2_X2 = at(20, 0);
+export const KEEP_AI3_X2 = at(20, 30);
+
+export const MAP_OBJECTS_X2 = [
+  { hex: at(3, 14), object: { type: 'keep', ownerId: 'player', spriteId: 'keep' } },
+  { hex: at(38, 16), object: { type: 'keep', ownerId: 'ai', spriteId: 'keep' } },
+  { hex: at(7, 11), object: { type: 'mine', resource: 'gold', ownerId: null, spriteId: 'mine-gold' } },
+  { hex: at(34, 19), object: { type: 'mine', resource: 'gold', ownerId: null, spriteId: 'mine-gold' } },
+  { hex: at(6, 21), object: { type: 'mine', resource: 'wood', ownerId: null, spriteId: 'mine-wood', guard: { creatureTypeId: 'peasant', count: 6 } } },
+  { hex: at(35, 9), object: { type: 'mine', resource: 'ore', ownerId: null, spriteId: 'mine-ore', guard: { creatureTypeId: 'peasant', count: 6 } } },
+  { hex: at(13, 3), object: { type: 'mine', resource: 'ore', ownerId: null, spriteId: 'mine-ore', guard: { creatureTypeId: 'peasant', count: 6 } } },
+  { hex: at(28, 27), object: { type: 'mine', resource: 'wood', ownerId: null, spriteId: 'mine-wood', guard: { creatureTypeId: 'peasant', count: 6 } } },
+  { hex: at(10, 27), object: { type: 'mine', resource: 'crystal', ownerId: null, spriteId: 'mine-crystal', guard: { creatureTypeId: 'pikeman', count: 5 } } },
+  { hex: at(31, 3), object: { type: 'mine', resource: 'mercury', ownerId: null, spriteId: 'mine-mercury', guard: { creatureTypeId: 'pikeman', count: 5 } } },
+  { hex: at(17, 1), object: { type: 'mine', resource: 'mercury', ownerId: null, spriteId: 'mine-mercury', guard: { creatureTypeId: 'pikeman', count: 5 } } },
+  { hex: at(24, 29), object: { type: 'mine', resource: 'crystal', ownerId: null, spriteId: 'mine-crystal', guard: { creatureTypeId: 'pikeman', count: 5 } } },
+  { hex: at(4, 4), object: { type: 'mine', resource: 'sulfur', ownerId: null, spriteId: 'mine-sulfur' } },
+  { hex: at(37, 26), object: { type: 'mine', resource: 'gems', ownerId: null, spriteId: 'mine-gems' } },
+  { hex: at(16, 26), object: { type: 'mine', resource: 'gems', ownerId: null, spriteId: 'mine-gems' } },
+  { hex: at(25, 4), object: { type: 'mine', resource: 'sulfur', ownerId: null, spriteId: 'mine-sulfur' } },
+  { hex: at(1, 0), object: { type: 'dwelling', creatureTypeId: 'peasant', ownerId: null, spriteId: 'dwelling-peasant', guard: { creatureTypeId: 'peasant', count: 10 } } },
+  { hex: at(6, 0), object: { type: 'dwelling', creatureTypeId: 'pikeman', ownerId: null, spriteId: 'dwelling-pikeman', guard: { creatureTypeId: 'pikeman', count: 8 } } },
+  { hex: at(10, 0), object: { type: 'dwelling', creatureTypeId: 'archer', ownerId: null, spriteId: 'dwelling-archer', guard: { creatureTypeId: 'archer', count: 6 } } },
+  { hex: at(14, 0), object: { type: 'dwelling', creatureTypeId: 'swordsman', ownerId: null, spriteId: 'dwelling-swordsman', guard: { creatureTypeId: 'swordsman', count: 5 } } },
+  { hex: at(18, 0), object: { type: 'dwelling', creatureTypeId: 'griffin', ownerId: null, spriteId: 'dwelling-griffin', guard: { creatureTypeId: 'griffin', count: 4 } } },
+  { hex: at(1, 6), object: { type: 'dwelling', creatureTypeId: 'cavalier', ownerId: null, spriteId: 'dwelling-cavalier', guard: { creatureTypeId: 'cavalier', count: 3 } } },
+  { hex: at(6, 6), object: { type: 'dwelling', creatureTypeId: 'dragon', ownerId: null, spriteId: 'dwelling-dragon', guard: { creatureTypeId: 'dragon', count: 2 } } },
+  { hex: at(40, 30), object: { type: 'dwelling', creatureTypeId: 'skeleton', ownerId: null, spriteId: 'dwelling-skeleton', guard: { creatureTypeId: 'skeleton', count: 10 } } },
+  { hex: at(35, 30), object: { type: 'dwelling', creatureTypeId: 'zombie', ownerId: null, spriteId: 'dwelling-zombie', guard: { creatureTypeId: 'zombie', count: 8 } } },
+  { hex: at(31, 30), object: { type: 'dwelling', creatureTypeId: 'ghost', ownerId: null, spriteId: 'dwelling-ghost', guard: { creatureTypeId: 'ghost', count: 6 } } },
+  { hex: at(27, 30), object: { type: 'dwelling', creatureTypeId: 'wraith', ownerId: null, spriteId: 'dwelling-wraith', guard: { creatureTypeId: 'wraith', count: 5 } } },
+  { hex: at(23, 30), object: { type: 'dwelling', creatureTypeId: 'vampire', ownerId: null, spriteId: 'dwelling-vampire', guard: { creatureTypeId: 'vampire', count: 4 } } },
+  { hex: at(40, 24), object: { type: 'dwelling', creatureTypeId: 'lich', ownerId: null, spriteId: 'dwelling-lich', guard: { creatureTypeId: 'lich', count: 3 } } },
+  { hex: at(35, 24), object: { type: 'dwelling', creatureTypeId: 'bone-dragon', ownerId: null, spriteId: 'dwelling-bone-dragon', guard: { creatureTypeId: 'bone-dragon', count: 2 } } },
+  { hex: at(10, 6), object: { type: 'dwelling', creatureTypeId: 'goblin', ownerId: null, spriteId: 'dwelling-goblin', guard: { creatureTypeId: 'goblin', count: 10 } } },
+  { hex: at(14, 6), object: { type: 'dwelling', creatureTypeId: 'wolf', ownerId: null, spriteId: 'dwelling-wolf', guard: { creatureTypeId: 'wolf', count: 8 } } },
+  { hex: at(18, 6), object: { type: 'dwelling', creatureTypeId: 'orc', ownerId: null, spriteId: 'dwelling-orc', guard: { creatureTypeId: 'orc', count: 6 } } },
+  { hex: at(1, 11), object: { type: 'dwelling', creatureTypeId: 'orc-chieftain', ownerId: null, spriteId: 'dwelling-orc-chieftain', guard: { creatureTypeId: 'orc-chieftain', count: 5 } } },
+  { hex: at(6, 11), object: { type: 'dwelling', creatureTypeId: 'ogre', ownerId: null, spriteId: 'dwelling-ogre', guard: { creatureTypeId: 'ogre', count: 4 } } },
+  { hex: at(10, 11), object: { type: 'dwelling', creatureTypeId: 'troll', ownerId: null, spriteId: 'dwelling-troll', guard: { creatureTypeId: 'troll', count: 3 } } },
+  { hex: at(14, 11), object: { type: 'dwelling', creatureTypeId: 'behemoth', ownerId: null, spriteId: 'dwelling-behemoth', guard: { creatureTypeId: 'behemoth', count: 2 } } },
+  { hex: at(31, 24), object: { type: 'dwelling', creatureTypeId: 'duwende', ownerId: null, spriteId: 'dwelling-duwende', guard: { creatureTypeId: 'duwende', count: 10 } } },
+  { hex: at(27, 24), object: { type: 'dwelling', creatureTypeId: 'santilmo', ownerId: null, spriteId: 'dwelling-santilmo', guard: { creatureTypeId: 'santilmo', count: 8 } } },
+  { hex: at(23, 24), object: { type: 'dwelling', creatureTypeId: 'manananggal', ownerId: null, spriteId: 'dwelling-manananggal', guard: { creatureTypeId: 'manananggal', count: 6 } } },
+  { hex: at(40, 19), object: { type: 'dwelling', creatureTypeId: 'tikbalang', ownerId: null, spriteId: 'dwelling-tikbalang', guard: { creatureTypeId: 'tikbalang', count: 5 } } },
+  { hex: at(35, 19), object: { type: 'dwelling', creatureTypeId: 'aswang', ownerId: null, spriteId: 'dwelling-aswang', guard: { creatureTypeId: 'aswang', count: 4 } } },
+  { hex: at(31, 19), object: { type: 'dwelling', creatureTypeId: 'kapre', ownerId: null, spriteId: 'dwelling-kapre', guard: { creatureTypeId: 'kapre', count: 3 } } },
+  { hex: at(27, 19), object: { type: 'dwelling', creatureTypeId: 'bakunawa', ownerId: null, spriteId: 'dwelling-bakunawa', guard: { creatureTypeId: 'bakunawa', count: 2 } } },
+  { hex: at(23, 0), object: { type: 'dwelling', creatureTypeId: 'phoenix', ownerId: null, spriteId: 'dwelling-phoenix', guard: { creatureTypeId: 'phoenix', count: 2 } } },
+  { hex: at(27, 0), object: { type: 'dwelling', creatureTypeId: 'sun-priest', ownerId: null, spriteId: 'dwelling-sun-priest', guard: { creatureTypeId: 'sun-priest', count: 4 } } },
+  { hex: at(31, 0), object: { type: 'dwelling', creatureTypeId: 'flame-dancer', ownerId: null, spriteId: 'dwelling-flame-dancer', guard: { creatureTypeId: 'flame-dancer', count: 6 } } },
+  { hex: at(35, 0), object: { type: 'dwelling', creatureTypeId: 'spark', ownerId: null, spriteId: 'dwelling-spark', guard: { creatureTypeId: 'spark', count: 10 } } },
+  { hex: at(18, 30), object: { type: 'dwelling', creatureTypeId: 'cinder-wyvern', ownerId: null, spriteId: 'dwelling-cinder-wyvern', guard: { creatureTypeId: 'cinder-wyvern', count: 3 } } },
+  { hex: at(10, 30), object: { type: 'dwelling', creatureTypeId: 'ash-drake', ownerId: null, spriteId: 'dwelling-ash-drake', guard: { creatureTypeId: 'ash-drake', count: 5 } } },
+  { hex: at(1, 30), object: { type: 'dwelling', creatureTypeId: 'salamander', ownerId: null, spriteId: 'dwelling-salamander', guard: { creatureTypeId: 'salamander', count: 8 } } },
+  { hex: at(23, 1), object: { type: 'dwelling', creatureTypeId: 'amaterasu', ownerId: null, spriteId: 'dwelling-amaterasu', guard: { creatureTypeId: 'amaterasu', count: 2 } } },
+  { hex: at(27, 1), object: { type: 'dwelling', creatureTypeId: 'kitsune', ownerId: null, spriteId: 'dwelling-kitsune', guard: { creatureTypeId: 'kitsune', count: 3 } } },
+  { hex: at(31, 1), object: { type: 'dwelling', creatureTypeId: 'orochi', ownerId: null, spriteId: 'dwelling-orochi', guard: { creatureTypeId: 'orochi', count: 4 } } },
+  { hex: at(27, 11), object: { type: 'dwelling', creatureTypeId: 'onmyoji', ownerId: null, spriteId: 'dwelling-onmyoji', guard: { creatureTypeId: 'onmyoji', count: 5 } } },
+  { hex: at(35, 1), object: { type: 'dwelling', creatureTypeId: 'oni', ownerId: null, spriteId: 'dwelling-oni', guard: { creatureTypeId: 'oni', count: 6 } } },
+  { hex: at(6, 29), object: { type: 'dwelling', creatureTypeId: 'tengu', ownerId: null, spriteId: 'dwelling-tengu', guard: { creatureTypeId: 'tengu', count: 8 } } },
+  { hex: at(1, 23), object: { type: 'dwelling', creatureTypeId: 'kappa', ownerId: null, spriteId: 'dwelling-kappa', guard: { creatureTypeId: 'kappa', count: 10 } } },
+  { hex: at(6, 27), object: { type: 'monster', spriteId: 'monster', guard: { creatureTypeId: 'peasant', count: 12 } } },
+  { hex: at(35, 3), object: { type: 'monster', spriteId: 'monster', guard: { creatureTypeId: 'pikeman', count: 8 } } },
+  { hex: at(13, 13), object: { type: 'monster', spriteId: 'monster', guard: { creatureTypeId: 'wolf', count: 6 } } },
+  { hex: at(28, 17), object: { type: 'monster', spriteId: 'monster', guard: { creatureTypeId: 'skeleton', count: 8 } } },
+  { hex: at(17, 21), object: { type: 'monster', spriteId: 'monster', guard: { creatureTypeId: 'ogre', count: 6 } } },
+  { hex: at(24, 9), object: { type: 'monster', spriteId: 'monster', guard: { creatureTypeId: 'dragon', count: 3 } } },
+  { hex: at(8, 6), object: { type: 'treasure', resource: 'gold', spriteId: 'treasure', amount: 500 } },
+  { hex: at(33, 24), object: { type: 'treasure', resource: 'gold', spriteId: 'treasure', amount: 500 } },
+  { hex: at(14, 17), object: { type: 'treasure', resource: 'wood', spriteId: 'treasure', amount: 300 } },
+  { hex: at(27, 13), object: { type: 'treasure', resource: 'ore', spriteId: 'treasure', amount: 300 } },
+  { hex: at(4, 24), object: { type: 'treasure', resource: 'ore', spriteId: 'treasure', amount: 300 } },
+  { hex: at(37, 6), object: { type: 'treasure', resource: 'wood', spriteId: 'treasure', amount: 300 } },
+  { hex: at(31, 2), object: { type: 'mine', resource: 'gold', ownerId: null, spriteId: 'mine-gold', guard: { creatureTypeId: 'peasant', count: 6 } } },
+  { hex: at(10, 28), object: { type: 'mine', resource: 'gold', ownerId: null, spriteId: 'mine-gold', guard: { creatureTypeId: 'pikeman', count: 5 } } },
+  { hex: at(24, 27), object: { type: 'mine', resource: 'wood', ownerId: null, spriteId: 'mine-wood', guard: { creatureTypeId: 'goblin', count: 6 } } },
+  { hex: at(17, 3), object: { type: 'mine', resource: 'wood', ownerId: null, spriteId: 'mine-wood', guard: { creatureTypeId: 'wolf', count: 5 } } },
+  { hex: at(8, 18), object: { type: 'mine', resource: 'ore', ownerId: null, spriteId: 'mine-ore', guard: { creatureTypeId: 'skeleton', count: 6 } } },
+  { hex: at(33, 12), object: { type: 'mine', resource: 'ore', ownerId: null, spriteId: 'mine-ore', guard: { creatureTypeId: 'zombie', count: 5 } } },
+  { hex: at(24, 26), object: { type: 'mine', resource: 'crystal', ownerId: null, spriteId: 'mine-crystal', guard: { creatureTypeId: 'duwende', count: 6 } } },
+  { hex: at(17, 4), object: { type: 'mine', resource: 'crystal', ownerId: null, spriteId: 'mine-crystal', guard: { creatureTypeId: 'santilmo', count: 5 } } },
+  { hex: at(19, 5), object: { type: 'mine', resource: 'mercury', ownerId: null, spriteId: 'mine-mercury', guard: { creatureTypeId: 'spark', count: 6 } } },
+  { hex: at(22, 25), object: { type: 'mine', resource: 'mercury', ownerId: null, spriteId: 'mine-mercury', guard: { creatureTypeId: 'salamander', count: 5 } } },
+  { hex: at(31, 22), object: { type: 'mine', resource: 'sulfur', ownerId: null, spriteId: 'mine-sulfur', guard: { creatureTypeId: 'kappa', count: 6 } } },
+  { hex: at(10, 8), object: { type: 'mine', resource: 'sulfur', ownerId: null, spriteId: 'mine-sulfur', guard: { creatureTypeId: 'tengu', count: 5 } } },
+  { hex: at(8, 15), object: { type: 'mine', resource: 'gems', ownerId: null, spriteId: 'mine-gems', guard: { creatureTypeId: 'peasant', count: 6 } } },
+  { hex: at(33, 15), object: { type: 'mine', resource: 'gems', ownerId: null, spriteId: 'mine-gems', guard: { creatureTypeId: 'pikeman', count: 5 } } },
+];
+
+export const MAP_WIDTH_X4 = 60;
+export const MAP_HEIGHT_X4 = 44;
+export const KEEP_PLAYER_X4 = at(4, 20);
+export const KEEP_AI_X4 = at(55, 23);
+export const KEEP_AI2_X4 = at(28, 0);
+export const KEEP_AI3_X4 = at(28, 43);
+
+export const MAP_OBJECTS_X4 = [
+  { hex: at(4, 20), object: { type: 'keep', ownerId: 'player', spriteId: 'keep' } },
+  { hex: at(55, 23), object: { type: 'keep', ownerId: 'ai', spriteId: 'keep' } },
+  { hex: at(10, 16), object: { type: 'mine', resource: 'gold', ownerId: null, spriteId: 'mine-gold' } },
+  { hex: at(49, 27), object: { type: 'mine', resource: 'gold', ownerId: null, spriteId: 'mine-gold' } },
+  { hex: at(8, 31), object: { type: 'mine', resource: 'wood', ownerId: null, spriteId: 'mine-wood', guard: { creatureTypeId: 'peasant', count: 6 } } },
+  { hex: at(51, 12), object: { type: 'mine', resource: 'ore', ownerId: null, spriteId: 'mine-ore', guard: { creatureTypeId: 'peasant', count: 6 } } },
+  { hex: at(18, 4), object: { type: 'mine', resource: 'ore', ownerId: null, spriteId: 'mine-ore', guard: { creatureTypeId: 'peasant', count: 6 } } },
+  { hex: at(41, 39), object: { type: 'mine', resource: 'wood', ownerId: null, spriteId: 'mine-wood', guard: { creatureTypeId: 'peasant', count: 6 } } },
+  { hex: at(14, 39), object: { type: 'mine', resource: 'crystal', ownerId: null, spriteId: 'mine-crystal', guard: { creatureTypeId: 'pikeman', count: 5 } } },
+  { hex: at(45, 4), object: { type: 'mine', resource: 'mercury', ownerId: null, spriteId: 'mine-mercury', guard: { creatureTypeId: 'pikeman', count: 5 } } },
+  { hex: at(24, 2), object: { type: 'mine', resource: 'mercury', ownerId: null, spriteId: 'mine-mercury', guard: { creatureTypeId: 'pikeman', count: 5 } } },
+  { hex: at(35, 41), object: { type: 'mine', resource: 'crystal', ownerId: null, spriteId: 'mine-crystal', guard: { creatureTypeId: 'pikeman', count: 5 } } },
+  { hex: at(6, 6), object: { type: 'mine', resource: 'sulfur', ownerId: null, spriteId: 'mine-sulfur' } },
+  { hex: at(53, 37), object: { type: 'mine', resource: 'gems', ownerId: null, spriteId: 'mine-gems' } },
+  { hex: at(22, 37), object: { type: 'mine', resource: 'gems', ownerId: null, spriteId: 'mine-gems' } },
+  { hex: at(37, 6), object: { type: 'mine', resource: 'sulfur', ownerId: null, spriteId: 'mine-sulfur' } },
+  { hex: at(2, 0), object: { type: 'dwelling', creatureTypeId: 'peasant', ownerId: null, spriteId: 'dwelling-peasant', guard: { creatureTypeId: 'peasant', count: 10 } } },
+  { hex: at(8, 0), object: { type: 'dwelling', creatureTypeId: 'pikeman', ownerId: null, spriteId: 'dwelling-pikeman', guard: { creatureTypeId: 'pikeman', count: 8 } } },
+  { hex: at(14, 0), object: { type: 'dwelling', creatureTypeId: 'archer', ownerId: null, spriteId: 'dwelling-archer', guard: { creatureTypeId: 'archer', count: 6 } } },
+  { hex: at(20, 0), object: { type: 'dwelling', creatureTypeId: 'swordsman', ownerId: null, spriteId: 'dwelling-swordsman', guard: { creatureTypeId: 'swordsman', count: 5 } } },
+  { hex: at(26, 0), object: { type: 'dwelling', creatureTypeId: 'griffin', ownerId: null, spriteId: 'dwelling-griffin', guard: { creatureTypeId: 'griffin', count: 4 } } },
+  { hex: at(2, 8), object: { type: 'dwelling', creatureTypeId: 'cavalier', ownerId: null, spriteId: 'dwelling-cavalier', guard: { creatureTypeId: 'cavalier', count: 3 } } },
+  { hex: at(8, 8), object: { type: 'dwelling', creatureTypeId: 'dragon', ownerId: null, spriteId: 'dwelling-dragon', guard: { creatureTypeId: 'dragon', count: 2 } } },
+  { hex: at(57, 43), object: { type: 'dwelling', creatureTypeId: 'skeleton', ownerId: null, spriteId: 'dwelling-skeleton', guard: { creatureTypeId: 'skeleton', count: 10 } } },
+  { hex: at(51, 43), object: { type: 'dwelling', creatureTypeId: 'zombie', ownerId: null, spriteId: 'dwelling-zombie', guard: { creatureTypeId: 'zombie', count: 8 } } },
+  { hex: at(45, 43), object: { type: 'dwelling', creatureTypeId: 'ghost', ownerId: null, spriteId: 'dwelling-ghost', guard: { creatureTypeId: 'ghost', count: 6 } } },
+  { hex: at(39, 43), object: { type: 'dwelling', creatureTypeId: 'wraith', ownerId: null, spriteId: 'dwelling-wraith', guard: { creatureTypeId: 'wraith', count: 5 } } },
+  { hex: at(33, 43), object: { type: 'dwelling', creatureTypeId: 'vampire', ownerId: null, spriteId: 'dwelling-vampire', guard: { creatureTypeId: 'vampire', count: 4 } } },
+  { hex: at(57, 35), object: { type: 'dwelling', creatureTypeId: 'lich', ownerId: null, spriteId: 'dwelling-lich', guard: { creatureTypeId: 'lich', count: 3 } } },
+  { hex: at(51, 35), object: { type: 'dwelling', creatureTypeId: 'bone-dragon', ownerId: null, spriteId: 'dwelling-bone-dragon', guard: { creatureTypeId: 'bone-dragon', count: 2 } } },
+  { hex: at(14, 8), object: { type: 'dwelling', creatureTypeId: 'goblin', ownerId: null, spriteId: 'dwelling-goblin', guard: { creatureTypeId: 'goblin', count: 10 } } },
+  { hex: at(20, 8), object: { type: 'dwelling', creatureTypeId: 'wolf', ownerId: null, spriteId: 'dwelling-wolf', guard: { creatureTypeId: 'wolf', count: 8 } } },
+  { hex: at(26, 8), object: { type: 'dwelling', creatureTypeId: 'orc', ownerId: null, spriteId: 'dwelling-orc', guard: { creatureTypeId: 'orc', count: 6 } } },
+  { hex: at(2, 16), object: { type: 'dwelling', creatureTypeId: 'orc-chieftain', ownerId: null, spriteId: 'dwelling-orc-chieftain', guard: { creatureTypeId: 'orc-chieftain', count: 5 } } },
+  { hex: at(8, 16), object: { type: 'dwelling', creatureTypeId: 'ogre', ownerId: null, spriteId: 'dwelling-ogre', guard: { creatureTypeId: 'ogre', count: 4 } } },
+  { hex: at(14, 16), object: { type: 'dwelling', creatureTypeId: 'troll', ownerId: null, spriteId: 'dwelling-troll', guard: { creatureTypeId: 'troll', count: 3 } } },
+  { hex: at(20, 16), object: { type: 'dwelling', creatureTypeId: 'behemoth', ownerId: null, spriteId: 'dwelling-behemoth', guard: { creatureTypeId: 'behemoth', count: 2 } } },
+  { hex: at(45, 35), object: { type: 'dwelling', creatureTypeId: 'duwende', ownerId: null, spriteId: 'dwelling-duwende', guard: { creatureTypeId: 'duwende', count: 10 } } },
+  { hex: at(39, 35), object: { type: 'dwelling', creatureTypeId: 'santilmo', ownerId: null, spriteId: 'dwelling-santilmo', guard: { creatureTypeId: 'santilmo', count: 8 } } },
+  { hex: at(33, 35), object: { type: 'dwelling', creatureTypeId: 'manananggal', ownerId: null, spriteId: 'dwelling-manananggal', guard: { creatureTypeId: 'manananggal', count: 6 } } },
+  { hex: at(57, 27), object: { type: 'dwelling', creatureTypeId: 'tikbalang', ownerId: null, spriteId: 'dwelling-tikbalang', guard: { creatureTypeId: 'tikbalang', count: 5 } } },
+  { hex: at(51, 27), object: { type: 'dwelling', creatureTypeId: 'aswang', ownerId: null, spriteId: 'dwelling-aswang', guard: { creatureTypeId: 'aswang', count: 4 } } },
+  { hex: at(45, 27), object: { type: 'dwelling', creatureTypeId: 'kapre', ownerId: null, spriteId: 'dwelling-kapre', guard: { creatureTypeId: 'kapre', count: 3 } } },
+  { hex: at(39, 27), object: { type: 'dwelling', creatureTypeId: 'bakunawa', ownerId: null, spriteId: 'dwelling-bakunawa', guard: { creatureTypeId: 'bakunawa', count: 2 } } },
+  { hex: at(33, 0), object: { type: 'dwelling', creatureTypeId: 'phoenix', ownerId: null, spriteId: 'dwelling-phoenix', guard: { creatureTypeId: 'phoenix', count: 2 } } },
+  { hex: at(39, 0), object: { type: 'dwelling', creatureTypeId: 'sun-priest', ownerId: null, spriteId: 'dwelling-sun-priest', guard: { creatureTypeId: 'sun-priest', count: 4 } } },
+  { hex: at(45, 0), object: { type: 'dwelling', creatureTypeId: 'flame-dancer', ownerId: null, spriteId: 'dwelling-flame-dancer', guard: { creatureTypeId: 'flame-dancer', count: 6 } } },
+  { hex: at(51, 0), object: { type: 'dwelling', creatureTypeId: 'spark', ownerId: null, spriteId: 'dwelling-spark', guard: { creatureTypeId: 'spark', count: 10 } } },
+  { hex: at(26, 43), object: { type: 'dwelling', creatureTypeId: 'cinder-wyvern', ownerId: null, spriteId: 'dwelling-cinder-wyvern', guard: { creatureTypeId: 'cinder-wyvern', count: 3 } } },
+  { hex: at(14, 43), object: { type: 'dwelling', creatureTypeId: 'ash-drake', ownerId: null, spriteId: 'dwelling-ash-drake', guard: { creatureTypeId: 'ash-drake', count: 5 } } },
+  { hex: at(2, 43), object: { type: 'dwelling', creatureTypeId: 'salamander', ownerId: null, spriteId: 'dwelling-salamander', guard: { creatureTypeId: 'salamander', count: 8 } } },
+  { hex: at(33, 2), object: { type: 'dwelling', creatureTypeId: 'amaterasu', ownerId: null, spriteId: 'dwelling-amaterasu', guard: { creatureTypeId: 'amaterasu', count: 2 } } },
+  { hex: at(39, 2), object: { type: 'dwelling', creatureTypeId: 'kitsune', ownerId: null, spriteId: 'dwelling-kitsune', guard: { creatureTypeId: 'kitsune', count: 3 } } },
+  { hex: at(45, 2), object: { type: 'dwelling', creatureTypeId: 'orochi', ownerId: null, spriteId: 'dwelling-orochi', guard: { creatureTypeId: 'orochi', count: 4 } } },
+  { hex: at(39, 16), object: { type: 'dwelling', creatureTypeId: 'onmyoji', ownerId: null, spriteId: 'dwelling-onmyoji', guard: { creatureTypeId: 'onmyoji', count: 5 } } },
+  { hex: at(51, 2), object: { type: 'dwelling', creatureTypeId: 'oni', ownerId: null, spriteId: 'dwelling-oni', guard: { creatureTypeId: 'oni', count: 6 } } },
+  { hex: at(8, 41), object: { type: 'dwelling', creatureTypeId: 'tengu', ownerId: null, spriteId: 'dwelling-tengu', guard: { creatureTypeId: 'tengu', count: 8 } } },
+  { hex: at(2, 33), object: { type: 'dwelling', creatureTypeId: 'kappa', ownerId: null, spriteId: 'dwelling-kappa', guard: { creatureTypeId: 'kappa', count: 10 } } },
+  { hex: at(8, 39), object: { type: 'monster', spriteId: 'monster', guard: { creatureTypeId: 'peasant', count: 12 } } },
+  { hex: at(51, 4), object: { type: 'monster', spriteId: 'monster', guard: { creatureTypeId: 'pikeman', count: 8 } } },
+  { hex: at(18, 18), object: { type: 'monster', spriteId: 'monster', guard: { creatureTypeId: 'wolf', count: 6 } } },
+  { hex: at(41, 25), object: { type: 'monster', spriteId: 'monster', guard: { creatureTypeId: 'skeleton', count: 8 } } },
+  { hex: at(24, 31), object: { type: 'monster', spriteId: 'monster', guard: { creatureTypeId: 'ogre', count: 6 } } },
+  { hex: at(35, 12), object: { type: 'monster', spriteId: 'monster', guard: { creatureTypeId: 'dragon', count: 3 } } },
+  { hex: at(12, 8), object: { type: 'treasure', resource: 'gold', spriteId: 'treasure', amount: 500 } },
+  { hex: at(47, 35), object: { type: 'treasure', resource: 'gold', spriteId: 'treasure', amount: 500 } },
+  { hex: at(20, 25), object: { type: 'treasure', resource: 'wood', spriteId: 'treasure', amount: 300 } },
+  { hex: at(39, 18), object: { type: 'treasure', resource: 'ore', spriteId: 'treasure', amount: 300 } },
+  { hex: at(6, 35), object: { type: 'treasure', resource: 'ore', spriteId: 'treasure', amount: 300 } },
+  { hex: at(53, 8), object: { type: 'treasure', resource: 'wood', spriteId: 'treasure', amount: 300 } },
+  { hex: at(36, 34), object: { type: 'mine', resource: 'gold', ownerId: null, spriteId: 'mine-gold', guard: { creatureTypeId: 'peasant', count: 6 } } },
+  { hex: at(23, 9), object: { type: 'mine', resource: 'gold', ownerId: null, spriteId: 'mine-gold', guard: { creatureTypeId: 'pikeman', count: 5 } } },
+  { hex: at(26, 23), object: { type: 'mine', resource: 'gold', ownerId: null, spriteId: 'mine-gold', guard: { creatureTypeId: 'goblin', count: 6 } } },
+  { hex: at(33, 20), object: { type: 'mine', resource: 'gold', ownerId: null, spriteId: 'mine-gold', guard: { creatureTypeId: 'wolf', count: 5 } } },
+  { hex: at(14, 21), object: { type: 'mine', resource: 'gold', ownerId: null, spriteId: 'mine-gold', guard: { creatureTypeId: 'skeleton', count: 6 } } },
+  { hex: at(45, 22), object: { type: 'mine', resource: 'gold', ownerId: null, spriteId: 'mine-gold', guard: { creatureTypeId: 'zombie', count: 5 } } },
+  { hex: at(39, 40), object: { type: 'mine', resource: 'wood', ownerId: null, spriteId: 'mine-wood', guard: { creatureTypeId: 'duwende', count: 6 } } },
+  { hex: at(20, 3), object: { type: 'mine', resource: 'wood', ownerId: null, spriteId: 'mine-wood', guard: { creatureTypeId: 'santilmo', count: 5 } } },
+  { hex: at(45, 7), object: { type: 'mine', resource: 'wood', ownerId: null, spriteId: 'mine-wood', guard: { creatureTypeId: 'spark', count: 6 } } },
+  { hex: at(14, 36), object: { type: 'mine', resource: 'wood', ownerId: null, spriteId: 'mine-wood', guard: { creatureTypeId: 'salamander', count: 5 } } },
+  { hex: at(19, 12), object: { type: 'mine', resource: 'wood', ownerId: null, spriteId: 'mine-wood', guard: { creatureTypeId: 'kappa', count: 6 } } },
+  { hex: at(40, 31), object: { type: 'mine', resource: 'wood', ownerId: null, spriteId: 'mine-wood', guard: { creatureTypeId: 'tengu', count: 5 } } },
+  { hex: at(14, 27), object: { type: 'mine', resource: 'ore', ownerId: null, spriteId: 'mine-ore', guard: { creatureTypeId: 'peasant', count: 6 } } },
+  { hex: at(45, 16), object: { type: 'mine', resource: 'ore', ownerId: null, spriteId: 'mine-ore', guard: { creatureTypeId: 'pikeman', count: 5 } } },
+  { hex: at(15, 5), object: { type: 'mine', resource: 'ore', ownerId: null, spriteId: 'mine-ore', guard: { creatureTypeId: 'goblin', count: 6 } } },
+  { hex: at(44, 38), object: { type: 'mine', resource: 'ore', ownerId: null, spriteId: 'mine-ore', guard: { creatureTypeId: 'wolf', count: 5 } } },
+  { hex: at(52, 39), object: { type: 'mine', resource: 'ore', ownerId: null, spriteId: 'mine-ore', guard: { creatureTypeId: 'skeleton', count: 6 } } },
+  { hex: at(7, 4), object: { type: 'mine', resource: 'ore', ownerId: null, spriteId: 'mine-ore', guard: { creatureTypeId: 'zombie', count: 5 } } },
+  { hex: at(31, 31), object: { type: 'mine', resource: 'crystal', ownerId: null, spriteId: 'mine-crystal', guard: { creatureTypeId: 'duwende', count: 6 } } },
+  { hex: at(28, 12), object: { type: 'mine', resource: 'crystal', ownerId: null, spriteId: 'mine-crystal', guard: { creatureTypeId: 'santilmo', count: 5 } } },
+  { hex: at(31, 5), object: { type: 'mine', resource: 'crystal', ownerId: null, spriteId: 'mine-crystal', guard: { creatureTypeId: 'spark', count: 6 } } },
+  { hex: at(28, 38), object: { type: 'mine', resource: 'crystal', ownerId: null, spriteId: 'mine-crystal', guard: { creatureTypeId: 'salamander', count: 5 } } },
+  { hex: at(11, 13), object: { type: 'mine', resource: 'crystal', ownerId: null, spriteId: 'mine-crystal', guard: { creatureTypeId: 'kappa', count: 6 } } },
+  { hex: at(48, 30), object: { type: 'mine', resource: 'crystal', ownerId: null, spriteId: 'mine-crystal', guard: { creatureTypeId: 'tengu', count: 5 } } },
+  { hex: at(24, 42), object: { type: 'mine', resource: 'mercury', ownerId: null, spriteId: 'mine-mercury', guard: { creatureTypeId: 'peasant', count: 6 } } },
+  { hex: at(35, 1), object: { type: 'mine', resource: 'mercury', ownerId: null, spriteId: 'mine-mercury', guard: { creatureTypeId: 'pikeman', count: 5 } } },
+  { hex: at(4, 1), object: { type: 'mine', resource: 'mercury', ownerId: null, spriteId: 'mine-mercury', guard: { creatureTypeId: 'goblin', count: 6 } } },
+  { hex: at(55, 42), object: { type: 'mine', resource: 'mercury', ownerId: null, spriteId: 'mine-mercury', guard: { creatureTypeId: 'wolf', count: 5 } } },
+  { hex: at(9, 25), object: { type: 'mine', resource: 'mercury', ownerId: null, spriteId: 'mine-mercury', guard: { creatureTypeId: 'skeleton', count: 6 } } },
+  { hex: at(50, 18), object: { type: 'mine', resource: 'mercury', ownerId: null, spriteId: 'mine-mercury', guard: { creatureTypeId: 'zombie', count: 5 } } },
+  { hex: at(49, 8), object: { type: 'mine', resource: 'sulfur', ownerId: null, spriteId: 'mine-sulfur', guard: { creatureTypeId: 'duwende', count: 6 } } },
+  { hex: at(10, 35), object: { type: 'mine', resource: 'sulfur', ownerId: null, spriteId: 'mine-sulfur', guard: { creatureTypeId: 'santilmo', count: 5 } } },
+  { hex: at(54, 32), object: { type: 'mine', resource: 'sulfur', ownerId: null, spriteId: 'mine-sulfur', guard: { creatureTypeId: 'spark', count: 6 } } },
+  { hex: at(5, 11), object: { type: 'mine', resource: 'sulfur', ownerId: null, spriteId: 'mine-sulfur', guard: { creatureTypeId: 'salamander', count: 5 } } },
+  { hex: at(23, 4), object: { type: 'mine', resource: 'sulfur', ownerId: null, spriteId: 'mine-sulfur', guard: { creatureTypeId: 'kappa', count: 6 } } },
+  { hex: at(36, 39), object: { type: 'mine', resource: 'sulfur', ownerId: null, spriteId: 'mine-sulfur', guard: { creatureTypeId: 'tengu', count: 5 } } },
+  { hex: at(44, 29), object: { type: 'mine', resource: 'gems', ownerId: null, spriteId: 'mine-gems', guard: { creatureTypeId: 'peasant', count: 6 } } },
+  { hex: at(15, 14), object: { type: 'mine', resource: 'gems', ownerId: null, spriteId: 'mine-gems', guard: { creatureTypeId: 'pikeman', count: 5 } } },
+  { hex: at(33, 1), object: { type: 'mine', resource: 'gems', ownerId: null, spriteId: 'mine-gems', guard: { creatureTypeId: 'goblin', count: 6 } } },
+  { hex: at(26, 42), object: { type: 'mine', resource: 'gems', ownerId: null, spriteId: 'mine-gems', guard: { creatureTypeId: 'wolf', count: 5 } } },
+  { hex: at(20, 40), object: { type: 'mine', resource: 'gems', ownerId: null, spriteId: 'mine-gems', guard: { creatureTypeId: 'skeleton', count: 6 } } },
+  { hex: at(39, 3), object: { type: 'mine', resource: 'gems', ownerId: null, spriteId: 'mine-gems', guard: { creatureTypeId: 'zombie', count: 5 } } },
+];
+
+// Looked up by map-size id ('x1' | 'x2' | 'x4', default 'x1') — adventure.js's
+// createAdventure reads this instead of importing the raw exports above
+// directly, so picking a size is a single lookup rather than scattering
+// conditionals through the engine.
+export function getMapLayout(sizeId) {
+  if (sizeId === 'x2') {
+    return { width: MAP_WIDTH_X2, height: MAP_HEIGHT_X2, objects: MAP_OBJECTS_X2, keepPlayer: KEEP_PLAYER_X2, keepAi: KEEP_AI_X2, keepAi2: KEEP_AI2_X2, keepAi3: KEEP_AI3_X2 };
+  }
+  if (sizeId === 'x4') {
+    return { width: MAP_WIDTH_X4, height: MAP_HEIGHT_X4, objects: MAP_OBJECTS_X4, keepPlayer: KEEP_PLAYER_X4, keepAi: KEEP_AI_X4, keepAi2: KEEP_AI2_X4, keepAi3: KEEP_AI3_X4 };
+  }
+  return { width: MAP_WIDTH, height: MAP_HEIGHT, objects: MAP_OBJECTS, keepPlayer: KEEP_PLAYER, keepAi: KEEP_AI, keepAi2: KEEP_AI2, keepAi3: KEEP_AI3 };
+}
