@@ -341,6 +341,26 @@ test('resolveBattleOutcome: losing a hero-vs-hero battle respawns the loser inst
   assert.equal(state.heroes.ai.defeatsSuffered, HERO_DEFEATS_TO_LOSE);
 });
 
+test('createAdventure honors a custom defeatsToWin, and resolveBattleOutcome ends the game at that threshold instead of the default', () => {
+  const state = createAdventure('human', 'orc', { defeatsToWin: 1 });
+  assert.equal(state.defeatsToWin, 1);
+
+  state.heroes.player.position = { q: KEEP_AI.q - 1, r: KEEP_AI.r };
+  state.heroes.player.movementLeft = MOVEMENT_PER_DAY;
+  moveHero(state, 'player', KEEP_AI);
+  resolveBattleOutcome(state, 'attacker', [{ creatureTypeId: 'pikeman', count: 4 }]);
+
+  // A single defeat is enough to end the game when defeatsToWin is 1.
+  assert.equal(state.phase, 'gameover');
+  assert.equal(state.winner, 'player');
+  assert.equal(state.heroes.ai.defeatsSuffered, 1);
+});
+
+test('createAdventure with no options defaults defeatsToWin to HERO_DEFEATS_TO_LOSE', () => {
+  const state = createAdventure('human', 'orc');
+  assert.equal(state.defeatsToWin, HERO_DEFEATS_TO_LOSE);
+});
+
 test('endDay refills movement and pays out owned mine income', () => {
   const state = freshState();
   let goldHex = null;

@@ -5,7 +5,7 @@ import { FACTIONS, getFaction } from './factions.js';
 import { spritePath } from './sprites.js';
 import {
   createAdventure, moveHero, endDay, kingdomScore, getPendingBattleArmies,
-  resolveBattleOutcome, planMoveTowards, isSiegeBattle, HERO_DEFEATS_TO_LOSE,
+  resolveBattleOutcome, planMoveTowards, isSiegeBattle,
 } from './adventure.js';
 import {
   createBattle, getStack, moveStack, attackStack, waitStack, defendStack,
@@ -21,7 +21,7 @@ import {
   knowsSpell, canAffordLearnSpell, learnSpell, castleRosterFor,
 } from './castle.js';
 import { SPELLS } from './spells.js';
-import { loadSettings, saveSettings } from './storage.js';
+import { loadSettings, saveSettings, DEFAULT_SETTINGS } from './storage.js';
 
 const $ = (id) => document.getElementById(id);
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -133,6 +133,7 @@ $('btn-close-how-to-play').addEventListener('click', () => $('dialog-how-to-play
 
 $('btn-new-game').addEventListener('click', () => {
   renderHeroTypeCards();
+  $('setup-defeats-to-win').value = String(settings.defeatsToWin);
   showScreen('screen-setup');
 });
 $('btn-setup-back').addEventListener('click', () => showScreen('screen-home'));
@@ -168,11 +169,13 @@ function renderHeroTypeCards() {
 }
 
 $('btn-start-game').addEventListener('click', () => {
-  settings = { heroTypeId: selectedHeroTypeId };
+  const rawDefeats = Math.round(Number($('setup-defeats-to-win').value));
+  const defeatsToWin = Math.min(10, Math.max(1, Number.isFinite(rawDefeats) ? rawDefeats : DEFAULT_SETTINGS.defeatsToWin));
+  settings = { ...settings, heroTypeId: selectedHeroTypeId, defeatsToWin };
   saveSettings(settings);
   const otherTypes = FACTIONS.filter((f) => f.id !== selectedHeroTypeId);
   const aiHeroTypeId = otherTypes[Math.floor(Math.random() * otherTypes.length)].id;
-  adventureState = createAdventure(selectedHeroTypeId, aiHeroTypeId);
+  adventureState = createAdventure(selectedHeroTypeId, aiHeroTypeId, { defeatsToWin });
   aiDayInProgress = false;
   resetInspectorUI();
   showScreen('screen-adventure');
@@ -196,7 +199,7 @@ function renderAdventure() {
   $('adv-hero-name').textContent = getFaction(state.heroes.player.heroTypeId).name;
   $('adv-hero-level').textContent = state.heroes.player.level;
   $('adv-defeats').textContent =
-    `${state.heroes.ai.defeatsSuffered}-${state.heroes.player.defeatsSuffered} / ${HERO_DEFEATS_TO_LOSE}`;
+    `${state.heroes.ai.defeatsSuffered}-${state.heroes.player.defeatsSuffered} / ${state.defeatsToWin}`;
 
   renderAdventureMap();
   renderArmyList($('adv-army-list'), state.heroes.player.army);
@@ -1089,12 +1092,33 @@ function finishBattleIfOver() {
   if (!battleState || battleState.phase !== 'over') return;
   const winnerSide = battleState.winnerSide;
   const survivors = survivingStacks(battleState, winnerSide);
+
+  // Captured *before* resolveBattleOutcome mutates everything (it clears
+  // state.pendingBattle, overwrites occupant.ownerId/guard, changes
+  // hero.xp/level, etc.) so describeBattleOutcome below can still narrate
+  // what the fight was actually over and what changed as a result.
+  const pending = adventureState.pendingBattle;
+  const involvesPlayer = pending.attackerOwner === 'player' || pending.defenderOwner === 'player';
+  const occupantSnap = snapshotOccupant(pending.hex);
+  const attackerHeroBefore = adventureState.heroes[pending.attackerOwner];
+  const xpBefore = attackerHeroBefore.xp;
+  const levelBefore = attackerHeroBefore.level;
+
   resolveBattleOutcome(adventureState, winnerSide, survivors, remainingManaFrom(battleState));
   battleState = null;
   battleContext = null;
   pendingSpellCast = null;
   pendingCatapultTarget = false;
 
+  if (involvesPlayer) {
+    const lines = describeBattleOutcome(pending, occupantSnap, xpBefore, levelBefore, winnerSide);
+    showScrollNotification(lines, proceedAfterBattle);
+  } else {
+    proceedAfterBattle();
+  }
+}
+
+function proceedAfterBattle() {
   if (adventureState.phase === 'gameover') {
     showGameOver();
     return;
@@ -1102,6 +1126,112 @@ function finishBattleIfOver() {
   showScreen('screen-adventure');
   renderAdventure();
   if (aiDayInProgress) continueAiDay();
+}
+
+// A hex's guarded-object fields relevant to narrating a just-finished
+// fight, snapshotted before resolveBattleOutcome overwrites ownerId/guard
+// (dwelling capture) or deletes the hex entirely (monster defeated).
+function snapshotOccupant(hex) {
+  const occupant = adventureState.hexes.get(key(hex));
+  if (!occupant) return null;
+  return { type: occupant.type, creatureTypeId: occupant.creatureTypeId, resource: occupant.resource, ownerId: occupant.ownerId };
+}
+
+function battleOwnerLabel(owner) {
+  return owner === 'player' ? 'You' : 'The AI';
+}
+
+// Builds the ScrollPopup-style narrative lines for a just-finished battle
+// that the player was involved in (as attacker, defender, or the guard
+// fight is their own). `pending`/`occupantSnap`/`xpBefore`/`levelBefore`
+// are all snapshotted before resolveBattleOutcome ran (see
+// finishBattleIfOver) since that call already mutated the state this
+// needs to read.
+function describeBattleOutcome(pending, occupantSnap, xpBefore, levelBefore, winnerSide) {
+  const state = adventureState;
+  const attackerOwner = pending.attackerOwner;
+  const lines = [];
+
+  if (pending.defenderKind === 'hero') {
+    const defenderOwner = pending.defenderOwner;
+    const winnerOwner = winnerSide === 'attacker' ? attackerOwner : defenderOwner;
+    const loserOwner = winnerOwner === attackerOwner ? defenderOwner : attackerOwner;
+    lines.push(
+      winnerOwner === 'player'
+        ? "Victory! You defeated the AI's hero in battle."
+        : 'Defeat! The AI defeated your hero in battle.',
+    );
+    const loserDefeats = state.heroes[loserOwner].defeatsSuffered;
+    if (state.phase === 'gameover') {
+      lines.push(
+        loserOwner === 'player'
+          ? `That was your ${loserDefeats}${loserDefeats === 1 ? 'st' : loserDefeats === 2 ? 'nd' : 'rd'} defeat — the game is over.`
+          : `That was the AI's ${loserDefeats}${loserDefeats === 1 ? 'st' : loserDefeats === 2 ? 'nd' : 'rd'} defeat — the game is over.`,
+      );
+    } else {
+      lines.push(
+        loserOwner === 'player'
+          ? `Your hero respawns at your Keep with a fresh army. (${loserDefeats}/${state.defeatsToWin} defeats)`
+          : `The AI's hero respawns at their Keep with a fresh army. (${loserDefeats}/${state.defeatsToWin} defeats)`,
+      );
+    }
+    return lines;
+  }
+
+  // A guard fight only ever reaches this scroll when the player is the
+  // one attacking (main.js's autoResolveNeutralBattle handles the AI's
+  // own guard fights instantly with no scroll, since the player isn't
+  // involved in those at all — see finishBattleIfOver's involvesPlayer).
+  if (winnerSide === 'attacker') {
+    lines.push('Victory! Your army defeated the guard.');
+    if (occupantSnap) {
+      if (occupantSnap.type === 'mine') {
+        lines.push(`You captured the ${occupantSnap.resource} mine.`);
+      } else if (occupantSnap.type === 'dwelling') {
+        const creatureName = getCreature(occupantSnap.creatureTypeId).name;
+        lines.push(`You captured the ${creatureName} dwelling — it's now unlocked at your Castle.`);
+        if (occupantSnap.ownerId && occupantSnap.ownerId !== attackerOwner) {
+          lines.push(`The AI can no longer recruit ${creatureName} from it.`);
+        }
+      } else if (occupantSnap.type === 'monster') {
+        lines.push('The monster guarding this hex has been destroyed.');
+      }
+    }
+    const xpGained = state.heroes.player.xp - xpBefore;
+    if (xpGained > 0) {
+      lines.push(`You gained ${xpGained} XP${state.heroes.player.level > levelBefore ? ' and leveled up!' : '.'}`);
+    }
+  } else {
+    lines.push('Defeat! Your army was wiped out by the guard.');
+    lines.push('You respawn at your Keep with a fresh starting army.');
+  }
+  return lines;
+}
+
+// Generic ScrollPopup-style narrative modal (see css/styles.css's
+// .scroll-overlay) — an unrolling parchment scroll with wooden rollers,
+// used for any one-off narration moment. `onClose` fires once the player
+// dismisses it; nothing else waits on the scroll except through that
+// callback (battle results defer their screen transition to it — see
+// finishBattleIfOver/proceedAfterBattle).
+function showScrollNotification(lines, onClose) {
+  const overlay = $('scroll-notification');
+  const linesEl = $('scroll-lines');
+  linesEl.innerHTML = '';
+  for (const line of lines) {
+    const p = document.createElement('p');
+    p.className = 'scroll-line';
+    p.textContent = line;
+    linesEl.appendChild(p);
+  }
+  overlay.hidden = false;
+  const btn = $('btn-scroll-continue');
+  const handleClose = () => {
+    overlay.hidden = true;
+    btn.removeEventListener('click', handleClose);
+    onClose();
+  };
+  btn.addEventListener('click', handleClose);
 }
 
 function autoResolveNeutralBattle() {
@@ -1703,7 +1833,7 @@ function showGameOver() {
     title.textContent = `${who} win${state.winner === 'player' ? '' : 's'}!`;
   }
   reason.textContent = state.winReason === 'combat'
-    ? `Decided by direct combat — the loser's hero was defeated ${HERO_DEFEATS_TO_LOSE} times.`
+    ? `Decided by direct combat — the loser's hero was defeated ${state.defeatsToWin} times.`
     : `Day ${state.dayLimit} reached — decided by Kingdom Score.`;
 
   const scores = $('gameover-scores');

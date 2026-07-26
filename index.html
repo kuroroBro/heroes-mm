@@ -78,11 +78,12 @@
         <li>Click <strong>End Day</strong> when you're done moving — the AI
           takes its turn, then a new day begins.</li>
         <li><strong>Defeat the enemy hero's army</strong> in direct combat
-          3 times to win (tracked by the ⚔️ pill). Each of the first 2
-          defeats just sends that hero home to respawn with a fresh
-          starting army, same as losing to a neutral guard — no permanent
-          loss until the 3rd. Otherwise, the game ends at Day 30 and
-          whoever has the higher Kingdom Score (mines, creature tiers,
+          the number of times set on the setup screen (default 3, tracked
+          by the ⚔️ pill) to win. Every defeat before the last one just
+          sends that hero home to respawn with a fresh starting army, same
+          as losing to a neutral guard — no permanent loss until the
+          final one. Otherwise, the game ends at Day 30 and whoever has
+          the higher Kingdom Score (mines, creature tiers,
           army) wins.</li>
       </ol>
       <button id="btn-close-how-to-play" class="btn btn-primary btn-big">Got it!</button>
@@ -128,6 +129,10 @@
       <h2>Choose your hero</h2>
     </header>
     <div id="hero-type-cards" class="hero-type-grid"></div>
+    <div class="setup-option-row">
+      <label for="setup-defeats-to-win">Hero defeats needed to win</label>
+      <input type="number" id="setup-defeats-to-win" min="1" max="10" value="3">
+    </div>
     <div class="setup-footer">
       <button id="btn-start-game" class="btn btn-primary btn-big">Start Game</button>
     </div>
@@ -238,6 +243,19 @@
       <button id="btn-play-again" class="btn btn-primary btn-big">🔁 New Game</button>
     </div>
   </section>
+
+  <!-- ============ SCROLL NOTIFICATION ============ -->
+  <div id="scroll-notification" class="scroll-overlay" hidden>
+    <div class="scroll-unroll">
+      <div class="scroll-roller"></div>
+      <div class="scroll-paper">
+        <p class="scroll-kicker">✨ What happened</p>
+        <div id="scroll-lines"></div>
+        <button id="btn-scroll-continue" type="button" class="btn btn-primary btn-small">Continue</button>
+      </div>
+      <div class="scroll-roller"></div>
+    </div>
+  </div>
 
   <script type="module" src="js/main.js"></script>
 </body>

@@ -5,8 +5,9 @@
 const SETTINGS_KEY = 'hexheroes.settings.v1';
 
 export const DEFAULT_SETTINGS = {
-  heroTypeId: 'marshal',
+  heroTypeId: 'human',
   legendCollapsed: false,
+  defeatsToWin: 3, // keep in sync with adventure.js's HERO_DEFEATS_TO_LOSE
 };
 
 export function loadSettings() {

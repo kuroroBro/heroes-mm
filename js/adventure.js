@@ -51,7 +51,11 @@ function createHero(owner, heroTypeId) {
   };
 }
 
-export function createAdventure(playerHeroTypeId, aiHeroTypeId) {
+// `defeatsToWin` (specs' setup-screen "hero defeats needed to win" option)
+// defaults to HERO_DEFEATS_TO_LOSE but is per-game configurable — stored
+// on state rather than read as a constant so resolveBattleOutcome can
+// honor whatever the setup screen was set to for this particular game.
+export function createAdventure(playerHeroTypeId, aiHeroTypeId, options = {}) {
   const hexes = new Map();
   for (const { hex, object } of MAP_OBJECTS) {
     hexes.set(key(hex), structuredClone(object));
@@ -70,6 +74,7 @@ export function createAdventure(playerHeroTypeId, aiHeroTypeId) {
     pendingBattle: null,
     winner: null,
     winReason: null,
+    defeatsToWin: options.defeatsToWin || HERO_DEFEATS_TO_LOSE,
   };
 }
 
@@ -269,7 +274,7 @@ export function resolveBattleOutcome(state, winnerSide, survivingStacks, remaini
     state.heroes[winnerOwner].army = survivingStacks.map((s) => ({ ...s }));
     loser.defeatsSuffered += 1;
 
-    if (loser.defeatsSuffered >= HERO_DEFEATS_TO_LOSE) {
+    if (loser.defeatsSuffered >= state.defeatsToWin) {
       state.phase = 'gameover';
       state.winner = winnerOwner;
       state.winReason = 'combat';
@@ -277,9 +282,9 @@ export function resolveBattleOutcome(state, winnerSide, survivingStacks, remaini
       return;
     }
 
-    // Not yet the loser's 3rd defeat — same respawn treatment as losing to
-    // a neutral guard (US-6): fresh starting army and full mana at home,
-    // and the adventure continues rather than ending outright.
+    // Not yet the loser's final defeat — same respawn treatment as losing
+    // to a neutral guard (US-6): fresh starting army and full mana at
+    // home, and the adventure continues rather than ending outright.
     loser.position = homeKeep(loserOwner);
     loser.army = getFaction(loser.heroTypeId).startingArmy.map((s) => ({ ...s }));
     loser.movementLeft = 0;
