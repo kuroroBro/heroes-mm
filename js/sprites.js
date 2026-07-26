@@ -95,9 +95,9 @@ const CREATURE_SPRITES = {
 };
 
 const HERO_SPRITES = {
-  'hero-human': 'images/creatures/hero-human.svg',
-  'hero-orc': 'images/creatures/hero-orc.svg',
-  'hero-undead': 'images/creatures/hero-undead.svg',
+  'hero-human': 'images/creatures/hero-human.png',
+  'hero-orc': 'images/creatures/hero-orc.png',
+  'hero-undead': 'images/creatures/hero-undead.png',
   'hero-enkantos': 'images/creatures/hero-enkantos.png',
 };
 
