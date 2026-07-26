@@ -1377,7 +1377,9 @@ function renderTurnOrder(state) {
     const creature = getCreature(s.creatureTypeId);
     const chip = document.createElement('div');
     chip.className = 'turn-chip side-' + s.side + (s.id === state.activeStackId ? ' active' : '');
+    chip.title = creature.name;
     chip.innerHTML = `<img src="${spritePath(creature.spriteId)}" alt="" width="20" height="20">`;
+    chip.addEventListener('click', () => openCreatureCardDialog(creature.id));
     bar.appendChild(chip);
   }
 }

@@ -587,6 +587,7 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
   border: 2px solid transparent;
   background: var(--surface);
   display: flex;
+  cursor: pointer;
 }
 .turn-chip.side-attacker { border-color: var(--owner-ai); }
 .turn-chip.side-defender { border-color: var(--owner-player); }
