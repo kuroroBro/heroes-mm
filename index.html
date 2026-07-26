@@ -209,6 +209,11 @@
       <span id="battle-turn-owner" class="pill"></span>
     </header>
     <div id="battle-turn-order" class="turn-order"></div>
+    <div id="battle-controls" class="battle-controls" hidden>
+      <span id="battle-active-label" class="battle-active-label"></span>
+      <button id="btn-battle-wait" class="btn btn-secondary btn-small">⏭️ Wait</button>
+      <button id="btn-battle-defend" class="btn btn-secondary btn-small">🛡️ Defend</button>
+    </div>
     <div id="battle-spell-panel" class="battle-spell-panel" hidden>
       <span class="pill">🔮 Mana: <span id="battle-mana">0</span>/<span id="battle-mana-max">0</span></span>
       <div id="battle-spell-buttons" class="battle-spell-buttons"></div>
@@ -222,11 +227,6 @@
     <div id="battle-map-wrap" class="adv-map-wrap">
       <svg id="battle-map" class="hex-map"></svg>
       <svg id="battle-effects" class="hex-map battle-effects-layer"></svg>
-    </div>
-    <div id="battle-controls" class="battle-controls" hidden>
-      <span id="battle-active-label" class="battle-active-label"></span>
-      <button id="btn-battle-wait" class="btn btn-secondary btn-small">⏭️ Wait</button>
-      <button id="btn-battle-defend" class="btn btn-secondary btn-small">🛡️ Defend</button>
     </div>
     <p id="battle-log" class="battle-log"></p>
   </section>
