@@ -18,6 +18,18 @@ function at(col, row) {
 
 export const KEEP_PLAYER = at(2, 10);
 export const KEEP_AI = at(27, 11);
+// KEEP_AI2/KEEP_AI3 (specs/009-multi-ai-opponents) — only ever placed on
+// the map (adventure.js's createAdventure) when the setup screen's AI
+// count actually calls for a 2nd/3rd AI; otherwise these hexes are just
+// open ground, same as everywhere else on the map. Top-middle/
+// bottom-middle, forming a left/right/top/bottom cross with the
+// original 2 keeps — checked for fairness the same way every dwelling
+// placement since specs/006 has been: total hex distance from all 4
+// keep positions to every mine+dwelling on the map came out within ~6%
+// of each other (855/855/822/872 across 56 pieces of content), close
+// enough that no single starting corner is a structural advantage.
+export const KEEP_AI2 = at(14, 0);
+export const KEEP_AI3 = at(14, 21);
 
 // type: 'mine' | 'dwelling' | 'monster' | 'keep' | 'treasure'
 export const MAP_OBJECTS = [

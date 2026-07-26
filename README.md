@@ -9,9 +9,9 @@ fight tactical hex battles against an AI opponent.
 ## How to play
 
 1. Pick a faction (Human / Orc / Undead / Enkantos / Sunborn / Yokai —
-   different starting army and Attack/Defense split), then **Start
-   Game**. You and an AI opponent start at opposite corners of a 15×11
-   hex map.
+   different starting army and Attack/Defense split) and how many AI
+   opponents join (1-3), then **Start Game**. Every hero gets a
+   distinct faction and its own Keep in a different corner of the map.
 2. Click a hex to move your hero there (pathfound automatically). Each hex
    costs 1 of your day's movement points (8/day).
 3. Walking onto an **unguarded** mine or dwelling captures it instantly —
@@ -116,7 +116,7 @@ The site is fully static — no build step.
 ```bash
 python3 -m http.server 8000   # any static server works
 # open http://localhost:8000
-node --test tests/*.test.mjs   # rules-engine unit tests (175 tests)
+node --test tests/*.test.mjs   # rules-engine unit tests (187 tests)
 ```
 
 ## Design docs (SDD)
@@ -141,11 +141,14 @@ hero-type pick, and
 faction (Sunborn, a fire/light order with a Phoenix at tier 7) added on
 top of that same shape,
 [`specs/007-town-hall-upgrade/`](specs/007-town-hall-upgrade/) for the
-Castle's 3-level Town Hall gold-income upgrade, and
+Castle's 3-level Town Hall gold-income upgrade,
 [`specs/008-yokai-faction/`](specs/008-yokai-faction/) for the 6th
-faction (Yokai, Japanese folklore culminating in Amaterasu at tier 7).
+faction (Yokai, Japanese folklore culminating in Amaterasu at tier 7),
+and [`specs/009-multi-ai-opponents/`](specs/009-multi-ai-opponents/)
+for choosing 1-3 AI opponents at setup instead of always exactly one.
 
 Unlike this workspace's other party games, this one has no networking
-yet — v1 is a single-device hero-vs-AI game. Multiplayer, following the
-same host-authoritative PeerJS pattern as the sibling games, is a planned
+yet — v1 is a single-device hero-vs-AI(s) game (all AI opponents are
+local bots, not other human players). Multiplayer, following the same
+host-authoritative PeerJS pattern as the sibling games, is a planned
 (not abandoned) future round — see plan.md's Networking model.

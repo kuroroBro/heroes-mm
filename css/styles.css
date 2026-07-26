@@ -7,6 +7,8 @@
   --text-dim: #cbb98f;
   --owner-player: #4fc3f7;
   --owner-ai: #ff6b4a;
+  --owner-ai2: #ab47bc;
+  --owner-ai3: #66bb6a;
   --owner-neutral: #8a8a8a;
   --accent: #ffd23f;
   --accent-dark: #c99a10;
@@ -523,6 +525,16 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
   fill: rgba(255, 107, 74, 0.25);
   filter: drop-shadow(0 0 8px #ff6b4a);
 }
+.hero-pedestal-aura.owner-ai2 {
+  stroke: #ab47bc;
+  fill: rgba(171, 71, 188, 0.25);
+  filter: drop-shadow(0 0 8px #ab47bc);
+}
+.hero-pedestal-aura.owner-ai3 {
+  stroke: #66bb6a;
+  fill: rgba(102, 187, 106, 0.25);
+  filter: drop-shadow(0 0 8px #66bb6a);
+}
 
 .keep-pedestal {
   fill: rgba(255, 210, 63, 0.15);
@@ -531,6 +543,8 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
 }
 .keep-pedestal.owner-player { stroke: var(--owner-player); fill: rgba(79, 195, 247, 0.2); }
 .keep-pedestal.owner-ai { stroke: var(--owner-ai); fill: rgba(255, 107, 74, 0.2); }
+.keep-pedestal.owner-ai2 { stroke: var(--owner-ai2); fill: rgba(171, 71, 188, 0.2); }
+.keep-pedestal.owner-ai3 { stroke: var(--owner-ai3); fill: rgba(102, 187, 106, 0.2); }
 
 .threat-aura-pulse {
   fill: rgba(255, 23, 68, 0.2);
@@ -565,6 +579,8 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
 }
 .owner-player { stroke: var(--owner-player); }
 .owner-ai { stroke: var(--owner-ai); }
+.owner-ai2 { stroke: var(--owner-ai2); }
+.owner-ai3 { stroke: var(--owner-ai3); }
 .owner-neutral { stroke: var(--owner-neutral); }
 .hero-ring { stroke-width: 4; }
 
@@ -595,6 +611,8 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
 
 .turn-player { border-color: var(--owner-player); color: var(--owner-player); }
 .turn-ai { border-color: var(--owner-ai); color: var(--owner-ai); }
+.turn-ai2 { border-color: var(--owner-ai2); color: var(--owner-ai2); }
+.turn-ai3 { border-color: var(--owner-ai3); color: var(--owner-ai3); }
 .turn-neutral { border-color: var(--owner-neutral); color: var(--owner-neutral); }
 
 .battle-controls {

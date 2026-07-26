@@ -14,9 +14,10 @@ function adventureFixture({ heroPos = { q: 0, r: 0 }, army, hexes, enemyPos = { 
   for (const [hex, obj] of hexes) hexMap.set(key(hex), obj);
   return {
     heroes: {
-      ai: { position: heroPos, army: army || [{ creatureTypeId: 'pikeman', count: 10 }] },
-      player: { position: enemyPos, army: [{ creatureTypeId: 'pikeman', count: 5 }] },
+      ai: { position: heroPos, army: army || [{ creatureTypeId: 'pikeman', count: 10 }], eliminated: false },
+      player: { position: enemyPos, army: [{ creatureTypeId: 'pikeman', count: 5 }], eliminated: false },
     },
+    owners: ['player', 'ai'],
     hexes: hexMap,
   };
 }
@@ -149,6 +150,42 @@ test('aiSelectTarget does not attack the enemy hero directly when it would likel
   });
   const target = aiSelectTarget(state, 'ai');
   assert.equal(target, null);
+});
+
+test('aiSelectTarget engages whichever living rival is nearest, with 3+ total heroes (specs/009-multi-ai-opponents)', () => {
+  const nearRival = { q: 2, r: 0 };
+  const farRival = { q: 10, r: 10 };
+  const state = {
+    heroes: {
+      ai: { position: { q: 0, r: 0 }, army: [{ creatureTypeId: 'dragon', count: 10 }], eliminated: false },
+      player: { position: farRival, army: [{ creatureTypeId: 'pikeman', count: 5 }], eliminated: false },
+      ai2: { position: nearRival, army: [{ creatureTypeId: 'pikeman', count: 5 }], eliminated: false },
+    },
+    owners: ['player', 'ai', 'ai2'],
+    hexes: new Map(),
+  };
+  // Nothing else on the map, overwhelming power — falls all the way
+  // through to the "engage the enemy hero" case, and should pick ai2
+  // (nearest) rather than player (farther), even though player is
+  // conventionally "the" opponent in the 2-hero shape.
+  const target = aiSelectTarget(state, 'ai');
+  assert.deepEqual(target, nearRival);
+});
+
+test('aiSelectTarget ignores an eliminated rival entirely, even if nearer', () => {
+  const eliminatedNear = { q: 2, r: 0 };
+  const livingFar = { q: 10, r: 10 };
+  const state = {
+    heroes: {
+      ai: { position: { q: 0, r: 0 }, army: [{ creatureTypeId: 'dragon', count: 10 }], eliminated: false },
+      player: { position: livingFar, army: [{ creatureTypeId: 'pikeman', count: 5 }], eliminated: false },
+      ai2: { position: eliminatedNear, army: [{ creatureTypeId: 'pikeman', count: 5 }], eliminated: true },
+    },
+    owners: ['player', 'ai', 'ai2'],
+    hexes: new Map(),
+  };
+  const target = aiSelectTarget(state, 'ai');
+  assert.deepEqual(target, livingFar);
 });
 
 test('aiChooseBattleMove returns null for a ranged stack (no need to move to attack)', () => {

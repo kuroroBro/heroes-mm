@@ -56,10 +56,23 @@ function hexFromKey(k) {
 export function aiSelectTarget(state, owner) {
   const hero = state.heroes[owner];
   const power = armyPower(hero.army);
-  const enemyOwner = owner === 'player' ? 'ai' : 'player';
-  const enemyHero = state.heroes[enemyOwner];
-  const enemyPos = enemyHero.position;
-  const enemyPower = armyPower(enemyHero.army);
+
+  // specs/009-multi-ai-opponents: with more than 2 total heroes, "the
+  // enemy" for siege/engage purposes below is whichever *living* rival
+  // is currently geographically nearest — a tractable generalization of
+  // the original single-rival logic (every other fallback here already
+  // picks the nearest reachable option of its own kind, so picking the
+  // nearest *rival* to focus siege/engage decisions on is consistent
+  // with that, not a full multi-rival threat-assessment system). With
+  // exactly 2 total heroes (the original, still-default shape) there's
+  // only ever one candidate, so this is unchanged.
+  const rivals = state.owners.filter((o) => o !== owner && !state.heroes[o].eliminated);
+  const enemyOwner = rivals.length > 0
+    ? rivals.reduce((best, o) => (distance(hero.position, state.heroes[o].position) < distance(hero.position, state.heroes[best].position) ? o : best))
+    : null;
+  const enemyHero = enemyOwner ? state.heroes[enemyOwner] : null;
+  const enemyPos = enemyHero ? enemyHero.position : null;
+  const enemyPower = enemyHero ? armyPower(enemyHero.army) : 0;
 
   let bestFree = null;
   let bestFreeDist = Infinity;
@@ -78,11 +91,11 @@ export function aiSelectTarget(state, owner) {
     // hero-vs-hero fight it never power-checked for (that gate only
     // lives in the enemyPos fallback below); skip it entirely so
     // engaging the enemy hero only ever happens through that one path.
-    if (equals(enemyHero.position, hex)) continue;
+    if (enemyHero && equals(enemyHero.position, hex)) continue;
     const d = distance(hero.position, hex);
 
     if (occupant.type === 'keep') {
-      if (occupant.ownerId === enemyOwner && !equals(enemyHero.position, hex) && d < siegeDist) {
+      if (enemyHero && occupant.ownerId === enemyOwner && !equals(enemyHero.position, hex) && d < siegeDist) {
         siegeDist = d;
         siegeTarget = hex;
       }
@@ -111,7 +124,7 @@ export function aiSelectTarget(state, owner) {
   if (bestFree) return bestFree;
   if (bestWinnable) return bestWinnable;
   if (siegeTarget) return siegeTarget;
-  if (power >= enemyPower * HERO_ENGAGE_POWER_MARGIN) return enemyPos;
+  if (enemyHero && power >= enemyPower * HERO_ENGAGE_POWER_MARGIN) return enemyPos;
   return null;
 }
 

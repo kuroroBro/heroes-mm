@@ -8,6 +8,7 @@ export const DEFAULT_SETTINGS = {
   heroTypeId: 'human',
   legendCollapsed: false,
   defeatsToWin: 3, // keep in sync with adventure.js's HERO_DEFEATS_TO_LOSE
+  aiCount: 1, // specs/009-multi-ai-opponents — 1-3 AI opponents
 };
 
 export function loadSettings() {

@@ -7,7 +7,7 @@ import {
   MANA_MAX, HOME_TURF_DEFENSE_BONUS, SIEGE_LOOT_FRACTION, isSiegeBattle,
   HERO_DEFEATS_TO_LOSE,
 } from '../js/adventure.js';
-import { KEEP_PLAYER, KEEP_AI } from '../js/mapObjects.js';
+import { KEEP_PLAYER, KEEP_AI, KEEP_AI2, KEEP_AI3 } from '../js/mapObjects.js';
 import { unlock, learnSpell, recruitCreatures, maxRecruitable, buildDwelling, upgradeTownHall } from '../js/castle.js';
 
 function freshState() {
@@ -669,4 +669,118 @@ test('resolveBattleOutcome restores full mana when respawning from a lost guard 
   moveHero(state, 'player', oreHex);
   resolveBattleOutcome(state, 'defender', [{ creatureTypeId: 'peasant', count: 2 }]);
   assert.equal(state.heroes.player.mana, MANA_MAX);
+});
+
+// ---------------------------------------------------------------------
+// Multi-AI opponents (specs/009-multi-ai-opponents)
+// ---------------------------------------------------------------------
+
+test('createAdventure with a single AI hero type id string is unchanged from before this feature', () => {
+  const state = createAdventure('human', 'orc');
+  assert.deepEqual(state.owners, ['player', 'ai']);
+  assert.deepEqual(state.aiOwners, ['ai']);
+  assert.equal(Object.keys(state.heroes).length, 2);
+  assert.deepEqual(state.heroes.ai.position, KEEP_AI);
+});
+
+test('createAdventure accepts an array of AI hero type ids for 2-3 AI opponents', () => {
+  const state = createAdventure('human', ['orc', 'undead', 'sunborn']);
+  assert.deepEqual(state.owners, ['player', 'ai', 'ai2', 'ai3']);
+  assert.deepEqual(state.aiOwners, ['ai', 'ai2', 'ai3']);
+  assert.equal(state.heroes.ai.heroTypeId, 'orc');
+  assert.equal(state.heroes.ai2.heroTypeId, 'undead');
+  assert.equal(state.heroes.ai3.heroTypeId, 'sunborn');
+  assert.deepEqual(state.heroes.ai2.position, KEEP_AI2);
+  assert.deepEqual(state.heroes.ai3.position, KEEP_AI3);
+  // Every hero, including the 2nd/3rd AI, has a real keep hex on the map.
+  assert.equal(state.hexes.get(key(KEEP_AI2)).ownerId, 'ai2');
+  assert.equal(state.hexes.get(key(KEEP_AI3)).ownerId, 'ai3');
+});
+
+test('createAdventure with a 1-element array behaves exactly like the single-string form', () => {
+  const state = createAdventure('human', ['orc']);
+  assert.deepEqual(state.owners, ['player', 'ai']);
+  assert.equal(state.hexes.has(key(KEEP_AI2)), false); // no 2nd AI keep exists at all
+});
+
+test('moveHero collision detection picks out whichever specific rival is standing on the target hex', () => {
+  const state = createAdventure('human', ['orc', 'undead']);
+  const ai2Pos = state.heroes.ai2.position;
+  state.heroes.player.position = { q: ai2Pos.q - 1, r: ai2Pos.r };
+  const ok = moveHero(state, 'player', ai2Pos);
+  assert.ok(ok);
+  assert.equal(state.pendingBattle.defenderKind, 'hero');
+  assert.equal(state.pendingBattle.defenderOwner, 'ai2'); // not 'ai' — the actual hero standing there
+});
+
+test('a hero eliminated (reaching defeatsToWin) with 2+ other heroes still alive does not end the game', () => {
+  const state = createAdventure('human', ['orc', 'undead'], { defeatsToWin: 1 });
+  const ai2Pos = state.heroes.ai2.position;
+  state.heroes.player.position = { q: ai2Pos.q - 1, r: ai2Pos.r };
+  moveHero(state, 'player', ai2Pos);
+
+  resolveBattleOutcome(state, 'attacker', [{ creatureTypeId: 'pikeman', count: 4 }]);
+
+  assert.equal(state.heroes.ai2.eliminated, true);
+  assert.equal(state.phase, 'playing'); // ai ('orc') is still alive — game continues
+  assert.equal(state.winner, null);
+});
+
+test('the game ends once only one hero remains un-eliminated, even with 3+ total heroes', () => {
+  const state = createAdventure('human', ['orc', 'undead'], { defeatsToWin: 1 });
+  state.heroes.ai.eliminated = true; // simulate ai already eliminated earlier
+
+  const ai2Pos = state.heroes.ai2.position;
+  state.heroes.player.position = { q: ai2Pos.q - 1, r: ai2Pos.r };
+  moveHero(state, 'player', ai2Pos);
+  resolveBattleOutcome(state, 'attacker', [{ creatureTypeId: 'pikeman', count: 4 }]);
+
+  assert.equal(state.heroes.ai2.eliminated, true);
+  assert.equal(state.phase, 'gameover'); // only player remains
+  assert.equal(state.winner, 'player');
+  assert.equal(state.winReason, 'combat');
+});
+
+test('eliminated heroes no longer block movement (moveHero can path straight through their hex)', () => {
+  const state = createAdventure('human', ['orc', 'undead']);
+  state.heroes.ai2.eliminated = true;
+  const ai2Pos = state.heroes.ai2.position;
+  const beyond = { q: ai2Pos.q + 1, r: ai2Pos.r };
+  state.heroes.player.position = { q: ai2Pos.q - 1, r: ai2Pos.r };
+  state.heroes.player.movementLeft = 20;
+  const ok = moveHero(state, 'player', beyond);
+  assert.ok(ok);
+  assert.equal(state.phase, 'playing'); // no battle triggered by walking past an eliminated hero
+});
+
+test('endDay day-limit scoring picks the single highest-scoring living hero among 3+, not just player-vs-one-ai', () => {
+  const state = createAdventure('human', ['orc', 'undead']);
+  state.day = state.dayLimit;
+  // Give ai2 a decisive score lead over both player and ai.
+  state.heroes.ai2.army = [{ creatureTypeId: 'zombie', count: 500 }];
+  endDay(state);
+  assert.equal(state.phase, 'gameover');
+  assert.equal(state.winReason, 'score');
+  assert.equal(state.winner, 'ai2');
+});
+
+test('endDay day-limit scoring excludes eliminated heroes from contention', () => {
+  const state = createAdventure('human', ['orc', 'undead']);
+  state.day = state.dayLimit;
+  state.heroes.ai2.army = [{ creatureTypeId: 'zombie', count: 500 }]; // would win on score...
+  state.heroes.ai2.eliminated = true; // ...but is already out of the game
+  endDay(state);
+  assert.notEqual(state.winner, 'ai2');
+});
+
+test('endDay day-limit scoring is a draw when 2+ living heroes tie for the highest score', () => {
+  const state = createAdventure('human', ['orc', 'undead']);
+  state.day = state.dayLimit;
+  // player and ai2 tied for the lead; ai (untouched) is behind both.
+  state.heroes.player.army = [{ creatureTypeId: 'pikeman', count: 100 }];
+  state.heroes.ai2.army = [{ creatureTypeId: 'zombie', count: 100 }];
+  endDay(state);
+  assert.equal(kingdomScore(state, 'player'), kingdomScore(state, 'ai2'));
+  assert.equal(state.phase, 'gameover');
+  assert.equal(state.winner, null);
 });

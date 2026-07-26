@@ -7,7 +7,7 @@ import { key, equals, findPath, inRect } from './hexgrid.js';
 import { getFaction } from './factions.js';
 import { getCreature } from './creatures.js';
 import { RESOURCES, emptyResourcePool, MINE_YIELD, KEEP_GOLD_YIELD } from './resources.js';
-import { MAP_WIDTH, MAP_HEIGHT, MAP_OBJECTS, KEEP_PLAYER, KEEP_AI } from './mapObjects.js';
+import { MAP_WIDTH, MAP_HEIGHT, MAP_OBJECTS, KEEP_PLAYER, KEEP_AI, KEEP_AI2, KEEP_AI3 } from './mapObjects.js';
 import { MAX_ARMY_SLOTS, armyValue } from './army.js';
 import { initCastle, unlock, accrueGrowth, revokeCaptureUnlock, townHallGoldBonus } from './castle.js';
 
@@ -21,12 +21,22 @@ const XP_PER_LEVEL = 1000;
 const XP_PER_ARMY_VALUE = 2; // XP gained = defeated army value * this multiplier
 export const HERO_DEFEATS_TO_LOSE = 3; // a hero must lose 3 hero-vs-hero battles before the game ends
 
+const AI_KEEPS = { ai: KEEP_AI, ai2: KEEP_AI2, ai3: KEEP_AI3 };
+
 function homeKeep(owner) {
-  return owner === 'player' ? KEEP_PLAYER : KEEP_AI;
+  if (owner === 'player') return KEEP_PLAYER;
+  return AI_KEEPS[owner];
 }
 
-function otherOwner(owner) {
-  return owner === 'player' ? 'ai' : 'player';
+// Every owner other than `owner` who hasn't been eliminated yet
+// (specs/009-multi-ai-opponents US-2) — with exactly 2 total heroes
+// (the default, pre-multi-AI shape) this is always a single-element
+// array, the same "the other one" `otherOwner` used to return directly.
+// Battles themselves stay strictly pairwise regardless of how many
+// total heroes are in the game — this is only ever used to find *which*
+// living hero (if any) is standing on a given hex.
+function otherLivingOwners(state, owner) {
+  return state.owners.filter((o) => o !== owner && !state.heroes[o].eliminated);
 }
 
 function createHero(owner, heroTypeId) {
@@ -48,6 +58,7 @@ function createHero(owner, heroTypeId) {
     manaMax: MANA_MAX,
     spellbook: new Set(),
     defeatsSuffered: 0,
+    eliminated: false,
   };
 }
 
@@ -55,21 +66,43 @@ function createHero(owner, heroTypeId) {
 // defaults to HERO_DEFEATS_TO_LOSE but is per-game configurable — stored
 // on state rather than read as a constant so resolveBattleOutcome can
 // honor whatever the setup screen was set to for this particular game.
-export function createAdventure(playerHeroTypeId, aiHeroTypeId, options = {}) {
+//
+// `aiHeroTypeIdOrIds` (specs/009-multi-ai-opponents) accepts either a
+// single faction id (the original, still-default shape: exactly one AI,
+// owner id 'ai') or an array of 1-3 ids for extra AI opponents (owner
+// ids 'ai', 'ai2', 'ai3' in array order) — every existing call site
+// passing a single string is completely unaffected, so this is purely
+// additive. `state.owners` is the full fixed list of every hero in this
+// game (`state.aiOwners` the AI subset of it) — iterate that instead of
+// a hardcoded ['player', 'ai'] anywhere state needs to touch every hero.
+export function createAdventure(playerHeroTypeId, aiHeroTypeIdOrIds, options = {}) {
+  const aiHeroTypeIds = Array.isArray(aiHeroTypeIdOrIds) ? aiHeroTypeIdOrIds : [aiHeroTypeIdOrIds];
+  const aiOwners = aiHeroTypeIds.map((_, i) => (i === 0 ? 'ai' : `ai${i + 1}`));
+
   const hexes = new Map();
   for (const { hex, object } of MAP_OBJECTS) {
     hexes.set(key(hex), structuredClone(object));
   }
+  // The 2nd/3rd AI's keep only exists on the map at all when that AI is
+  // actually in this game (KEEP_AI2/KEEP_AI3 aren't in the static
+  // MAP_OBJECTS list for exactly this reason — see mapObjects.js).
+  for (const owner of aiOwners) {
+    if (owner === 'ai') continue; // already in MAP_OBJECTS
+    hexes.set(key(AI_KEEPS[owner]), { type: 'keep', ownerId: owner, spriteId: 'keep' });
+  }
+
+  const heroes = { player: createHero('player', playerHeroTypeId) };
+  aiOwners.forEach((owner, i) => { heroes[owner] = createHero(owner, aiHeroTypeIds[i]); });
+
   return {
     day: 1,
     dayLimit: DAY_LIMIT,
     mapWidth: MAP_WIDTH,
     mapHeight: MAP_HEIGHT,
     hexes,
-    heroes: {
-      player: createHero('player', playerHeroTypeId),
-      ai: createHero('ai', aiHeroTypeId),
-    },
+    heroes,
+    owners: ['player', ...aiOwners],
+    aiOwners,
     phase: 'playing',
     pendingBattle: null,
     winner: null,
@@ -86,8 +119,9 @@ function isPassableForMove(state, owner, goal) {
   return (hex) => {
     if (!inRect(hex, state.mapWidth, state.mapHeight)) return false;
     const isGoal = equals(hex, goal);
-    const opponent = state.heroes[otherOwner(owner)];
-    if (equals(opponent.position, hex)) return isGoal;
+    for (const other of otherLivingOwners(state, owner)) {
+      if (equals(state.heroes[other].position, hex)) return isGoal;
+    }
     if (getObject(state, hex)) return isGoal;
     return true;
   };
@@ -143,10 +177,10 @@ export function moveHero(state, owner, targetHex) {
 
   hero.movementLeft -= path.cost;
 
-  const opponent = state.heroes[otherOwner(owner)];
-  if (equals(opponent.position, targetHex)) {
+  const opponentAtTarget = otherLivingOwners(state, owner).find((o) => equals(state.heroes[o].position, targetHex));
+  if (opponentAtTarget) {
     state.phase = 'battle';
-    state.pendingBattle = { attackerOwner: owner, defenderKind: 'hero', defenderOwner: otherOwner(owner), hex: targetHex };
+    state.pendingBattle = { attackerOwner: owner, defenderKind: 'hero', defenderOwner: opponentAtTarget, hex: targetHex };
     return true;
   }
 
@@ -294,16 +328,29 @@ export function resolveBattleOutcome(state, winnerSide, survivingStacks, remaini
     const defender = state.heroes[defenderOwner];
     if (remainingMana.defender != null) defender.mana = remainingMana.defender;
     const winnerOwner = winnerSide === 'attacker' ? attackerOwner : defenderOwner;
-    const loserOwner = otherOwner(winnerOwner);
+    const loserOwner = winnerOwner === attackerOwner ? defenderOwner : attackerOwner;
     const loser = state.heroes[loserOwner];
     state.heroes[winnerOwner].army = survivingStacks.map((s) => ({ ...s }));
     loser.defeatsSuffered += 1;
 
     if (loser.defeatsSuffered >= state.defeatsToWin) {
-      state.phase = 'gameover';
-      state.winner = winnerOwner;
-      state.winReason = 'combat';
+      // specs/009-multi-ai-opponents: a hero reaching their final defeat
+      // is *eliminated* — frozen in place, no more turns, no longer a
+      // valid battle/collision target for anyone else (otherLivingOwners
+      // above already excludes them) — but the game itself only ends
+      // once just one hero remains standing. With exactly 2 total heroes
+      // (the original, still-default shape) that's always immediate,
+      // same as before this feature existed.
+      loser.eliminated = true;
+      const remaining = state.owners.filter((o) => !state.heroes[o].eliminated);
       state.pendingBattle = null;
+      if (remaining.length <= 1) {
+        state.phase = 'gameover';
+        state.winner = remaining[0] ?? winnerOwner;
+        state.winReason = 'combat';
+      } else {
+        state.phase = 'playing';
+      }
       return;
     }
 
@@ -404,7 +451,7 @@ export function endDay(state) {
   }
 
   state.day += 1;
-  for (const owner of ['player', 'ai']) {
+  for (const owner of state.owners) {
     const hero = state.heroes[owner];
     hero.movementLeft = hero.movementMax;
     hero.mana = hero.manaMax;
@@ -412,12 +459,18 @@ export function endDay(state) {
   }
 
   if (state.day > state.dayLimit) {
-    const playerScore = kingdomScore(state, 'player');
-    const aiScore = kingdomScore(state, 'ai');
+    // specs/009-multi-ai-opponents: compares every *living* hero (an
+    // eliminated one has nothing left to contest), not just 2 — with
+    // exactly 2 total heroes this is identical to the original "compare
+    // playerScore/aiScore directly" logic. A tie for the single highest
+    // score is a draw, same generalization of the original tie rule.
+    const living = state.owners.filter((o) => !state.heroes[o].eliminated);
+    const scores = living.map((owner) => ({ owner, score: kingdomScore(state, owner) }));
+    const maxScore = Math.max(...scores.map((s) => s.score));
+    const leaders = scores.filter((s) => s.score === maxScore);
     state.phase = 'gameover';
     state.winReason = 'score';
-    if (playerScore === aiScore) state.winner = null;
-    else state.winner = playerScore > aiScore ? 'player' : 'ai';
+    state.winner = leaders.length === 1 ? leaders[0].owner : null;
   }
 
   return true;

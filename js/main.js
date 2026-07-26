@@ -136,6 +136,7 @@ $('btn-close-how-to-play').addEventListener('click', () => $('dialog-how-to-play
 $('btn-new-game').addEventListener('click', () => {
   renderHeroTypeCards();
   $('setup-defeats-to-win').value = String(settings.defeatsToWin);
+  $('setup-ai-count').value = String(settings.aiCount);
   showScreen('screen-setup');
 });
 $('btn-setup-back').addEventListener('click', () => showScreen('screen-home'));
@@ -173,11 +174,22 @@ function renderHeroTypeCards() {
 $('btn-start-game').addEventListener('click', () => {
   const rawDefeats = Math.round(Number($('setup-defeats-to-win').value));
   const defeatsToWin = Math.min(10, Math.max(1, Number.isFinite(rawDefeats) ? rawDefeats : DEFAULT_SETTINGS.defeatsToWin));
-  settings = { ...settings, heroTypeId: selectedHeroTypeId, defeatsToWin };
+  const rawAiCount = Math.round(Number($('setup-ai-count').value));
+  const aiCount = Math.min(3, Math.max(1, Number.isFinite(rawAiCount) ? rawAiCount : DEFAULT_SETTINGS.aiCount));
+  settings = { ...settings, heroTypeId: selectedHeroTypeId, defeatsToWin, aiCount };
   saveSettings(settings);
+  // Each AI opponent gets a distinct faction (never the player's own,
+  // never repeated across AI) — shuffle the remaining factions and take
+  // the first aiCount (specs/009-multi-ai-opponents; aiCount is capped at
+  // 3, always <= FACTIONS.length - 1, so there's always enough to draw
+  // from without repeats).
   const otherTypes = FACTIONS.filter((f) => f.id !== selectedHeroTypeId);
-  const aiHeroTypeId = otherTypes[Math.floor(Math.random() * otherTypes.length)].id;
-  adventureState = createAdventure(selectedHeroTypeId, aiHeroTypeId, { defeatsToWin });
+  for (let i = otherTypes.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [otherTypes[i], otherTypes[j]] = [otherTypes[j], otherTypes[i]];
+  }
+  const aiHeroTypeIds = otherTypes.slice(0, aiCount).map((f) => f.id);
+  adventureState = createAdventure(selectedHeroTypeId, aiHeroTypeIds, { defeatsToWin });
   aiDayInProgress = false;
   resetInspectorUI();
   showScreen('screen-adventure');
@@ -200,8 +212,13 @@ function renderAdventure() {
   $('adv-moves').textContent = state.heroes.player.movementLeft;
   $('adv-hero-name').textContent = getFaction(state.heroes.player.heroTypeId).name;
   $('adv-hero-level').textContent = state.heroes.player.level;
-  $('adv-defeats').textContent =
-    `${state.heroes.ai.defeatsSuffered}-${state.heroes.player.defeatsSuffered} / ${state.defeatsToWin}`;
+  // specs/009-multi-ai-opponents: with exactly 1 AI (the original,
+  // still-default shape) this is byte-identical to the pre-existing
+  // "AI-You / N" format; with 2-3 AI it lists each one's count instead,
+  // since "AI" alone would be ambiguous once there's more than one.
+  $('adv-defeats').textContent = state.aiOwners.length <= 1
+    ? `${state.heroes.ai.defeatsSuffered}-${state.heroes.player.defeatsSuffered} / ${state.defeatsToWin}`
+    : `You:${state.heroes.player.defeatsSuffered} ${state.aiOwners.map((o, i) => `AI${i + 1}:${state.heroes[o].defeatsSuffered}`).join(' ')} / ${state.defeatsToWin}`;
 
   renderAdventureMap();
   renderArmyList($('adv-army-list'), state.heroes.player.army);
@@ -333,11 +350,31 @@ function initMapLegend() {
 }
 setTimeout(initMapLegend, 0);
 
+// specs/009-multi-ai-opponents: a per-owner color for map badges/icons —
+// 'ai'/'ai2'/'ai3' each get a distinct hue (matching the CSS --owner-ai2/
+// --owner-ai3 variables), anything else (unclaimed/neutral) falls back
+// to the existing neutral gold.
+const OWNER_COLORS = { player: '#4fc3f7', ai: '#ff6b4a', ai2: '#ab47bc', ai3: '#66bb6a' };
+function ownerColor(owner) {
+  return OWNER_COLORS[owner] || '#ffd23f';
+}
+
+// [main, border] shade pairs for the adventure map's hero level badge,
+// one per owner (specs/009-multi-ai-opponents) — a darker/richer variant
+// of OWNER_COLORS' hue, matching the original player/AI pair's own
+// saturated-vs-light contrast.
+const HERO_BADGE_COLORS = {
+  player: ['#0288d1', '#81d4fa'],
+  ai: ['#d32f2f', '#ff8a80'],
+  ai2: ['#8e24aa', '#ce93d8'],
+  ai3: ['#2e7d32', '#a5d6a7'],
+};
+
 function getHexInspectionDetails(hex) {
   if (!adventureState) return null;
   const state = adventureState;
 
-  for (const owner of ['player', 'ai']) {
+  for (const owner of state.owners) {
     const hero = state.heroes[owner];
     if (equals(hero.position, hex)) {
       const heroType = getFaction(hero.heroTypeId);
@@ -346,13 +383,13 @@ function getHexInspectionDetails(hex) {
       return {
         category: 'hero',
         title: `${isPlayer ? '🛡️ Player Hero' : '⚔️ Enemy Hero'}: ${heroType.name}`,
-        subtitle: `Level ${hero.level} ${heroType.name} (${isPlayer ? 'Your Hero' : 'AI Opponent'})`,
+        subtitle: `Level ${hero.level} ${heroType.name} (${isPlayer ? 'Your Hero' : `${battleOwnerLabel(owner)} Opponent`})`,
         details: [
           `Attack: ${hero.attack} / Defense: ${hero.defense}`,
           `Army: ${armyDesc}`,
           isPlayer ? `Movement left: ${hero.movementLeft}/${hero.movementMax}` : 'Click to attack if reachable'
         ],
-        badgeColor: isPlayer ? '#4fc3f7' : '#ff6b4a',
+        badgeColor: ownerColor(owner),
       };
     }
   }
@@ -373,23 +410,23 @@ function getHexInspectionDetails(hex) {
   }
 
   if (occupant.type === 'keep') {
-    const ownerName = occupant.ownerId ? (occupant.ownerId === 'player' ? 'Your Keep' : 'AI Enemy Keep') : 'Neutral Keep';
+    const ownerName = occupant.ownerId ? (occupant.ownerId === 'player' ? 'Your Keep' : `${battleOwnerLabel(occupant.ownerId)} Keep`) : 'Neutral Keep';
     return {
       category: 'keep',
       title: `🏰 Castle Fortress (${ownerName})`,
       subtitle: occupant.ownerId === 'player' ? 'Your Home Base & Castle' : 'Enemy Fortress (Siege Target)',
       details: [
-        `Owner: ${occupant.ownerId ? occupant.ownerId.toUpperCase() : 'Unclaimed'}`,
+        `Owner: ${occupant.ownerId ? battleOwnerLabel(occupant.ownerId) : 'Unclaimed'}`,
         `Produces +${KEEP_GOLD_YIELD} Gold per day for its owner`,
         occupant.ownerId === 'player' ? 'Click 🏰 Castle button to recruit creatures & learn spells.' : 'Move hero onto enemy keep to initiate a Siege!'
       ],
-      badgeColor: occupant.ownerId === 'player' ? '#4fc3f7' : (occupant.ownerId === 'ai' ? '#ff6b4a' : '#ffd23f'),
+      badgeColor: occupant.ownerId ? ownerColor(occupant.ownerId) : '#ffd23f',
     };
   }
 
   if (occupant.type === 'mine') {
     const resConf = RESOURCE_CONFIG[occupant.resource] || { symbol: '⛏️', label: occupant.resource, color: '#ffd54f' };
-    const ownerName = occupant.ownerId ? (occupant.ownerId === 'player' ? 'You' : 'AI Enemy') : 'Unclaimed';
+    const ownerName = occupant.ownerId ? battleOwnerLabel(occupant.ownerId) : 'Unclaimed';
     const guardDesc = occupant.guard ? `Guarded by ${occupant.guard.count} ${getCreature(occupant.guard.creatureTypeId).name}s` : 'Unguarded';
     return {
       category: 'mine',
@@ -425,7 +462,7 @@ function getHexInspectionDetails(hex) {
   if (occupant.type === 'dwelling') {
     const creature = occupant.creatureTypeId ? getCreature(occupant.creatureTypeId) : null;
     const name = creature ? creature.name : 'Creature';
-    const ownerName = occupant.ownerId ? (occupant.ownerId === 'player' ? 'Captured by You' : 'Captured by AI') : 'Unclaimed';
+    const ownerName = occupant.ownerId ? `Captured by ${occupant.ownerId === 'player' ? 'You' : battleOwnerLabel(occupant.ownerId)}` : 'Unclaimed';
     const guardDesc = occupant.guard ? `Guarded by ${occupant.guard.count} ${getCreature(occupant.guard.creatureTypeId).name}s` : 'Unguarded';
     return {
       category: 'dwelling',
@@ -579,7 +616,7 @@ function renderAdventureMap() {
     if (activeMapFilter !== 'all') {
       if (occupant && occupant.type === activeMapFilter) isFilterMatch = true;
       if (activeMapFilter === 'hero') {
-        if (equals(state.heroes.player.position, hex) || equals(state.heroes.ai.position, hex)) {
+        if (state.owners.some((owner) => equals(state.heroes[owner].position, hex))) {
           isFilterMatch = true;
         }
       }
@@ -667,7 +704,7 @@ function renderAdventureMap() {
 
     // 4. Specific Badge Overlays for instant readability
     if (occupant.type === 'keep') {
-      drawMapSvgBadge(svg, pos.x, pos.y + ADV_HEX_SIZE - 6, occupant.ownerId ? occupant.ownerId.toUpperCase() : 'CASTLE', occupant.ownerId === 'player' ? '#1565c0' : (occupant.ownerId === 'ai' ? '#c62828' : '#37474f'), '#ffffff', '#ffd54f', 8);
+      drawMapSvgBadge(svg, pos.x, pos.y + ADV_HEX_SIZE - 6, occupant.ownerId ? occupant.ownerId.toUpperCase() : 'CASTLE', occupant.ownerId ? ownerColor(occupant.ownerId) : '#37474f', '#ffffff', '#ffd54f', 8);
     } else if (occupant.type === 'mine') {
       const resConf = RESOURCE_CONFIG[occupant.resource];
       if (resConf) {
@@ -692,7 +729,7 @@ function renderAdventureMap() {
   // Render Hero Tokens with Pedestals, Auras, and Hero Crest Badges
   // (already its own pass after every hex tile/sprite/badge above, so
   // hero labels are never hidden behind any of them either.)
-  for (const owner of ['player', 'ai']) {
+  for (const owner of state.owners) {
     const hero = state.heroes[owner];
     const pos = positions.get(key(hero.position));
     if (!pos) continue;
@@ -720,10 +757,18 @@ function renderAdventureMap() {
     heroImg.addEventListener('click', () => handleAdventureHexClick(hero.position));
     svg.appendChild(heroImg);
 
-    // Hero Level Badge
+    // Hero Level Badge — "AI{level}" for the default single-AI shape
+    // (byte-identical to the original text), "AI{index} Lv{level}" once
+    // a 2nd/3rd AI exists so it's clear *which* AI this is, not just that
+    // it's some AI (specs/009-multi-ai-opponents).
     const isPlayer = owner === 'player';
-    const label = `${isPlayer ? 'LV' : 'AI'}${hero.level} ${heroType.name}`;
-    drawMapSvgBadge(svg, pos.x, pos.y - ADV_HEX_SIZE * 0.75, label, isPlayer ? '#0288d1' : '#d32f2f', '#ffffff', isPlayer ? '#81d4fa' : '#ff8a80', 9);
+    const label = isPlayer
+      ? `LV${hero.level} ${heroType.name}`
+      : state.aiOwners.length <= 1
+        ? `AI${hero.level} ${heroType.name}`
+        : `AI${state.aiOwners.indexOf(owner) + 1} Lv${hero.level} ${heroType.name}`;
+    const [badgeColor, badgeBorder] = HERO_BADGE_COLORS[owner] || HERO_BADGE_COLORS.ai;
+    drawMapSvgBadge(svg, pos.x, pos.y - ADV_HEX_SIZE * 0.75, label, badgeColor, '#ffffff', badgeBorder, 9);
   }
 }
 
@@ -746,35 +791,59 @@ function handleAdventureHexClick(hex) {
 $('btn-end-day').addEventListener('click', () => {
   if (!adventureState || adventureState.phase !== 'playing' || aiDayInProgress) return;
   aiDayInProgress = true;
+  currentAiTurnIndex = 0;
   continueAiDay();
 });
+
+// Drives each active (non-eliminated) AI opponent through its full day's
+// movement in turn, index by index through adventureState.aiOwners
+// (specs/009-multi-ai-opponents) — the original single-AI shape is just
+// this loop with exactly one element. An AI that attacks the *player*
+// hands off to an interactive battle (proceedAfterBattle resumes
+// continueAiDay() afterward at the same index, since that AI may still
+// have movement left); an AI that attacks another AI (or a neutral
+// guard) auto-resolves instantly, same as before, and continues at the
+// same index. Only once an AI runs out of movement/targets does the
+// index advance to the next AI; once every AI has gone, finishAiDay
+// ends the day for everyone.
+let currentAiTurnIndex = 0;
 
 function continueAiDay() {
   if (!aiDayInProgress) return;
   if (!adventureState || adventureState.phase !== 'playing') return;
-  const aiHero = adventureState.heroes.ai;
-  if (aiHero.movementLeft <= 0) {
+
+  const aiOwners = adventureState.aiOwners;
+  if (currentAiTurnIndex >= aiOwners.length) {
     finishAiDay();
     return;
   }
-  const target = aiSelectTarget(adventureState, 'ai');
-  const nextHex = target ? planMoveTowards(adventureState, 'ai', target) : null;
+  const owner = aiOwners[currentAiTurnIndex];
+  const aiHero = adventureState.heroes[owner];
+  if (aiHero.eliminated || aiHero.movementLeft <= 0) {
+    currentAiTurnIndex += 1;
+    continueAiDay();
+    return;
+  }
+  const target = aiSelectTarget(adventureState, owner);
+  const nextHex = target ? planMoveTowards(adventureState, owner, target) : null;
   if (!nextHex) {
-    finishAiDay();
+    currentAiTurnIndex += 1;
+    continueAiDay();
     return;
   }
-  const ok = moveHero(adventureState, 'ai', nextHex);
+  const ok = moveHero(adventureState, owner, nextHex);
   renderAdventure();
   if (!ok) {
-    finishAiDay();
+    currentAiTurnIndex += 1;
+    continueAiDay();
     return;
   }
   if (adventureState.phase === 'battle') {
     const pending = adventureState.pendingBattle;
     if (pending.defenderKind === 'hero' && pending.defenderOwner === 'player') {
-      startBattleFromPending(); // AI attacked the player — interactive fight
+      startBattleFromPending(); // this AI attacked the player — interactive fight
     } else {
-      autoResolveNeutralBattle();
+      autoResolveBattle();
       setTimeout(continueAiDay, 120);
     }
     return;
@@ -785,7 +854,9 @@ function continueAiDay() {
 function finishAiDay() {
   aiDayInProgress = false;
   endDay(adventureState);
-  chooseAiCastleActions(adventureState, 'ai');
+  for (const owner of adventureState.aiOwners) {
+    if (!adventureState.heroes[owner].eliminated) chooseAiCastleActions(adventureState, owner);
+  }
   renderAdventure();
   if (adventureState.phase === 'gameover') {
     // Combat-decided endings (hero-vs-hero defeat count reached) already
@@ -1233,8 +1304,21 @@ function finishFinalBattle(winnerSide, survivors) {
 
   const lines = winnerOwner === 'player'
     ? ['Victory! Your final battle settles it — you win the war.']
-    : ["Defeat! The AI's final battle victory settles it — the war is lost."];
+    : [`Defeat! ${battleOwnerPossessive(winnerOwner)} final battle victory settles it — the war is lost.`];
   showScrollNotification(lines, showGameOver);
+}
+
+// Which AI rival the "final battle" offer challenges when more than one
+// is still alive (specs/009-multi-ai-opponents) — the single highest
+// Kingdom Score among living AI opponents, framed as "duel the leader"
+// rather than making the player pick from a list. With exactly one AI
+// (the original, still-default shape) there's only ever one candidate.
+let pendingFinalBattleRival = null;
+
+function finalBattleRival(state) {
+  const livingAi = state.aiOwners.filter((o) => !state.heroes[o].eliminated);
+  if (livingAi.length === 0) return null;
+  return livingAi.reduce((best, o) => (kingdomScore(state, o) > kingdomScore(state, best) ? o : best));
 }
 
 // Offered once the Day-limit is reached (finishAiDay, in place of jumping
@@ -1243,12 +1327,26 @@ function finishFinalBattle(winnerSide, survivors) {
 // verdict. Declining proceeds exactly as before this feature existed.
 function offerFinalBattle() {
   const state = adventureState;
-  const playerScore = kingdomScore(state, 'player');
-  const aiScore = kingdomScore(state, 'ai');
-  const verdict = playerScore === aiScore ? "it's a draw"
-    : playerScore > aiScore ? 'you win' : 'the AI wins';
-  $('final-battle-summary').textContent =
-    `Kingdom Score says ${verdict} (You: ${playerScore} pts, AI: ${aiScore} pts).`;
+  pendingFinalBattleRival = finalBattleRival(state);
+  if (!pendingFinalBattleRival) { showGameOver(); return; } // no living AI to challenge — shouldn't normally happen
+  // state.winner/winReason already reflect the true Kingdom Score
+  // verdict across every living hero (endDay just ran this), not just a
+  // 2-way player/rival comparison — showing that instead of re-deriving
+  // one keeps this accurate even when a 3rd hero (not the rival being
+  // offered) is actually the current score leader.
+  const verdict = state.winner === null ? "it's a draw"
+    : state.winner === 'player' ? 'you win' : `${battleOwnerLabel(state.winner)} wins`;
+  const scoreList = state.owners
+    .filter((o) => !state.heroes[o].eliminated)
+    .map((o) => `${battleOwnerLabel(o)}: ${kingdomScore(state, o)} pts`)
+    .join(', ');
+  $('final-battle-summary').textContent = `Kingdom Score says ${verdict} (${scoreList}).`;
+  // Names the specific rival being offered once there's more than one AI
+  // to be ambiguous about (specs/009-multi-ai-opponents) — "the AI's
+  // hero" reads fine with exactly one opponent but "AI 2's hero" is the
+  // one you'd actually fight once there are 2-3.
+  $('final-battle-explainer').textContent =
+    `You can accept the Kingdom Score result, or fight one decisive final battle against ${battleOwnerPossessive(pendingFinalBattleRival)} hero to settle it instead — whoever wins that fight wins the game outright, regardless of the score above or how many defeats either hero has taken so far.`;
   $('dialog-final-battle-offer').showModal();
 }
 
@@ -1262,17 +1360,18 @@ $('btn-final-battle-yes').addEventListener('click', () => {
   startFinalBattle();
 });
 
-// Teleports the player's hero onto the AI hero's current hex (bypassing
+// Teleports the player's hero onto the rival's current hex (bypassing
 // normal movement/pathing entirely — this is a special one-off duel, not
 // a real move) and starts an interactive hero-vs-hero fight through the
 // exact same createBattle/startBattleFromPending path a normal encounter
 // uses, so siege treatment (home-turf bonus, wall) still applies
-// correctly if the AI happens to be standing at their own Keep.
+// correctly if the rival happens to be standing at their own Keep.
 function startFinalBattle() {
   const state = adventureState;
-  const hex = state.heroes.ai.position;
+  const rival = pendingFinalBattleRival;
+  const hex = state.heroes[rival].position;
   state.phase = 'battle';
-  state.pendingBattle = { attackerOwner: 'player', defenderKind: 'hero', defenderOwner: 'ai', hex };
+  state.pendingBattle = { attackerOwner: 'player', defenderKind: 'hero', defenderOwner: rival, hex };
   isFinalBattle = true;
   startBattleFromPending();
 }
@@ -1286,8 +1385,44 @@ function snapshotOccupant(hex) {
   return { type: occupant.type, creatureTypeId: occupant.creatureTypeId, resource: occupant.resource, ownerId: occupant.ownerId };
 }
 
+// A human-readable label for `owner`, aware of how many AI opponents are
+// actually in this game (specs/009-multi-ai-opponents) — "The AI" when
+// there's only one (the original, still-default phrasing everywhere
+// below reduces to), "AI 2"/"AI 3" when there are more, so narration
+// never says "the AI" ambiguously once a 2nd/3rd opponent exists.
 function battleOwnerLabel(owner) {
-  return owner === 'player' ? 'You' : 'The AI';
+  if (owner === 'player') return 'You';
+  const state = adventureState;
+  if (!state || state.aiOwners.length <= 1) return 'The AI';
+  return `AI ${state.aiOwners.indexOf(owner) + 1}`;
+}
+
+// Possessive form ("your" / "the AI's" / "AI 2's") for sentences like
+// "{possessive} hero respawns at {home} Keep".
+function battleOwnerPossessive(owner) {
+  if (owner === 'player') return 'your';
+  const state = adventureState;
+  if (!state || state.aiOwners.length <= 1) return "the AI's";
+  return `AI ${state.aiOwners.indexOf(owner) + 1}'s`;
+}
+
+function capitalize(s) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// Handles every defeatsToWin value the setup screen allows (1-10), not
+// just 1-3 — the original inline `n === 1 ? 'st' : n === 2 ? 'nd' :
+// 'rd'` this replaces silently mislabeled every count of 4 or higher as
+// "4rd", "5rd", etc.
+function ordinal(n) {
+  const lastTwo = n % 100;
+  if (lastTwo >= 11 && lastTwo <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1: return `${n}st`;
+    case 2: return `${n}nd`;
+    case 3: return `${n}rd`;
+    default: return `${n}th`;
+  }
 }
 
 // Builds the ScrollPopup-style narrative lines for a just-finished battle
@@ -1305,32 +1440,26 @@ function describeBattleOutcome(pending, occupantSnap, xpBefore, levelBefore, win
     const defenderOwner = pending.defenderOwner;
     const winnerOwner = winnerSide === 'attacker' ? attackerOwner : defenderOwner;
     const loserOwner = winnerOwner === attackerOwner ? defenderOwner : attackerOwner;
-    lines.push(
-      winnerOwner === 'player'
-        ? "Victory! You defeated the AI's hero in battle."
-        : 'Defeat! The AI defeated your hero in battle.',
-    );
+    const outcomeWord = winnerOwner === 'player' ? 'Victory!' : 'Defeat!';
+    lines.push(`${outcomeWord} ${battleOwnerLabel(winnerOwner)} defeated ${battleOwnerPossessive(loserOwner)} hero in battle.`);
+
     const loserDefeats = state.heroes[loserOwner].defeatsSuffered;
     if (state.phase === 'gameover') {
-      lines.push(
-        loserOwner === 'player'
-          ? `That was your ${loserDefeats}${loserDefeats === 1 ? 'st' : loserDefeats === 2 ? 'nd' : 'rd'} defeat — the game is over.`
-          : `That was the AI's ${loserDefeats}${loserDefeats === 1 ? 'st' : loserDefeats === 2 ? 'nd' : 'rd'} defeat — the game is over.`,
-      );
+      lines.push(`That was ${battleOwnerPossessive(loserOwner)} ${ordinal(loserDefeats)} defeat — the game is over.`);
     } else {
+      const homeWord = loserOwner === 'player' ? 'your' : 'their';
       lines.push(
-        loserOwner === 'player'
-          ? `Your hero respawns at your Keep with a fresh army. (${loserDefeats}/${state.defeatsToWin} defeats)`
-          : `The AI's hero respawns at their Keep with a fresh army. (${loserDefeats}/${state.defeatsToWin} defeats)`,
+        `${capitalize(battleOwnerPossessive(loserOwner))} hero respawns at ${homeWord} Keep with a fresh army. (${loserDefeats}/${state.defeatsToWin} defeats)`,
       );
     }
     return lines;
   }
 
   // A guard fight only ever reaches this scroll when the player is the
-  // one attacking (main.js's autoResolveNeutralBattle handles the AI's
-  // own guard fights instantly with no scroll, since the player isn't
-  // involved in those at all — see finishBattleIfOver's involvesPlayer).
+  // one attacking (main.js's autoResolveBattle handles the AI's own
+  // guard fights — and AI-vs-AI hero fights — instantly with no scroll,
+  // since the player isn't involved in those at all — see
+  // finishBattleIfOver's involvesPlayer).
   if (winnerSide === 'attacker') {
     lines.push('Victory! Your army defeated the guard.');
     if (occupantSnap) {
@@ -1340,7 +1469,7 @@ function describeBattleOutcome(pending, occupantSnap, xpBefore, levelBefore, win
         const creatureName = getCreature(occupantSnap.creatureTypeId).name;
         lines.push(`You captured the ${creatureName} dwelling — it's now unlocked at your Castle.`);
         if (occupantSnap.ownerId && occupantSnap.ownerId !== attackerOwner) {
-          lines.push(`The AI can no longer recruit ${creatureName} from it.`);
+          lines.push(`${battleOwnerLabel(occupantSnap.ownerId)} can no longer recruit ${creatureName} from it.`);
         }
       } else if (occupantSnap.type === 'monster') {
         lines.push('The monster guarding this hex has been destroyed.');
@@ -1383,13 +1512,17 @@ function showScrollNotification(lines, onClose) {
   btn.addEventListener('click', handleClose);
 }
 
-function autoResolveNeutralBattle() {
-  const pending = adventureState.pendingBattle;
+// Simulates a battle the player has no part in start-to-finish with no
+// UI ever shown (never touches the module-level battleContext /
+// renderBattle) — originally only ever a neutral guard/monster fight,
+// now also an AI-vs-AI hero battle when a 2nd/3rd AI opponent is in
+// play (specs/009-multi-ai-opponents); resolveBattleOutcome itself
+// already reads the real attacker/defenderOwner straight from
+// adventureState.pendingBattle regardless of which case this is, so no
+// special-casing is needed here beyond the name no longer being quite
+// accurate.
+function autoResolveBattle() {
   const armies = getPendingBattleArmies(adventureState);
-  const context = {
-    attackerOwner: pending.attackerOwner,
-    defenderOwner: null,
-  };
   const bs = createBattle(
     armies.attackerArmy, armies.defenderArmy, armies.attackerBonus, armies.defenderBonus,
     undefined, { isSiege: isSiegeBattle(adventureState) },
@@ -1412,10 +1545,10 @@ function renderBattle() {
 
   const active = getStack(state, state.activeStackId);
   const owner = active ? battleSideOwner(active.side) : null;
-  const ownerLabel = owner === 'player' ? 'Your turn' : owner === 'ai' ? "AI's turn" : 'Neutral guard';
+  const ownerLabel = owner === 'player' ? 'Your turn' : owner ? `${battleOwnerLabel(owner)}'s turn` : 'Neutral guard';
   const ownerEl = $('battle-turn-owner');
   ownerEl.textContent = ownerLabel;
-  ownerEl.className = 'pill ' + (owner === 'player' ? 'turn-player' : owner === 'ai' ? 'turn-ai' : 'turn-neutral');
+  ownerEl.className = 'pill ' + (owner ? `turn-${owner}` : 'turn-neutral');
 
   $('battle-siege-wall').hidden = !battleContext?.isSiege;
 
@@ -1693,7 +1826,7 @@ function renderBattleMap(state) {
   for (const stack of liveStacks) {
     const pos = positions.get(key(stack.position));
     const owner = battleSideOwner(stack.side);
-    const ringClass = owner === 'player' ? 'owner-player' : owner === 'ai' ? 'owner-ai' : 'owner-neutral';
+    const ringClass = owner ? `owner-${owner}` : 'owner-neutral';
     const isSpellTarget = pendingSpell && active
       && (pendingSpell.target === 'singleAlly' ? stack.side === active.side : stack.side !== active.side);
 
@@ -1980,7 +2113,7 @@ function showGameOver() {
     title.textContent = "It's a draw!";
   } else {
     const heroType = getFaction(state.heroes[state.winner].heroTypeId);
-    const who = state.winner === 'player' ? 'You' : `The AI (${heroType.name})`;
+    const who = state.winner === 'player' ? 'You' : `${battleOwnerLabel(state.winner)} (${heroType.name})`;
     title.textContent = `${who} win${state.winner === 'player' ? '' : 's'}!`;
   }
   reason.textContent = state.winReason === 'combat'
@@ -1991,8 +2124,8 @@ function showGameOver() {
 
   const scores = $('gameover-scores');
   scores.innerHTML = '';
-  for (const owner of ['player', 'ai']) {
-    const label = owner === 'player' ? 'You' : 'AI';
+  for (const owner of state.owners) {
+    const label = battleOwnerLabel(owner);
     const b = kingdomScoreBreakdown(state, owner);
     const div = document.createElement('div');
     div.className = 'final-score-owner';
