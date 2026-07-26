@@ -556,6 +556,18 @@ function renderAdventureMap() {
       .map(key),
   );
 
+  // 3 passes — every hex's base tile, then every occupant's aura/sprite,
+  // then every ring/badge/label — so a badge or label that visually
+  // spills past its own hex's border (every drawMapSvgBadge call below
+  // sits at pos.y + ADV_HEX_SIZE - 6, reaching into the row underneath)
+  // never gets hidden behind a *neighboring* hex's tile or sprite merely
+  // because that neighbor comes later in row-major iteration order.
+  // Interleaving all of this per-hex (the old single-pass approach) meant
+  // a dwelling/mine/monster/treasure label routinely rendered, then got
+  // painted over the instant the next row's hex tile was appended — same
+  // failure mode already fixed once for the battle map's own per-stack
+  // sprite/label rendering (see stepBattleAuto's/renderBattleMap's own
+  // "two passes" comment).
   for (const hex of allHexes) {
     const pos = positions.get(key(hex));
     const occupant = state.hexes.get(key(hex));
@@ -575,7 +587,7 @@ function renderAdventureMap() {
 
     const tileClass = 'hex-tile' + (isFilterMatch ? ' filter-matched' : '');
     const poly = svgEl('polygon', { points, class: tileClass, fill: terrainFill('grass') });
-    
+
     // Add inspector hover listeners
     poly.addEventListener('mouseenter', (e) => updateInspectorUI(hex, e));
     poly.addEventListener('mousemove', (e) => updateInspectorUI(hex, e));
@@ -595,79 +607,91 @@ function renderAdventureMap() {
       const highlight = svgEl('polygon', { points, class: 'hex-tile-highlight' });
       svg.appendChild(highlight);
     }
+  }
 
-    if (occupant) {
-      // 1. Pedestals / Aura Glows depending on object category
-      if (occupant.type === 'keep') {
-        const keepAura = svgEl('circle', {
-          cx: pos.x, cy: pos.y + 4, r: ADV_HEX_SIZE * 0.95,
-          class: `keep-pedestal owner-${occupant.ownerId || 'neutral'}`,
-        });
-        svg.appendChild(keepAura);
-      } else if (occupant.type === 'monster') {
-        const monsterAura = svgEl('circle', {
-          cx: pos.x, cy: pos.y + 2, r: ADV_HEX_SIZE * 0.85, class: 'threat-aura-pulse',
-        });
-        svg.appendChild(monsterAura);
-      } else if (occupant.type === 'treasure') {
-        const treasureAura = svgEl('circle', {
-          cx: pos.x, cy: pos.y + 2, r: ADV_HEX_SIZE * 0.75, class: 'treasure-aura-glow',
-        });
-        svg.appendChild(treasureAura);
-      }
+  for (const hex of allHexes) {
+    const pos = positions.get(key(hex));
+    const occupant = state.hexes.get(key(hex));
+    if (!occupant) continue;
 
-      // 2. Object Sprite Graphic
-      let iconSize = ADV_HEX_SIZE * 1.25;
-      if (occupant.type === 'keep') iconSize = ADV_HEX_SIZE * 1.55;
-
-      const img = svgEl('image', {
-        href: spritePath(occupant.spriteId),
-        x: pos.x - iconSize / 2,
-        y: pos.y - iconSize / 2 - (occupant.type === 'keep' ? 4 : 0),
-        width: iconSize,
-        height: iconSize,
-        class: `hex-object-icon object-type-${occupant.type}`,
+    // 1. Pedestals / Aura Glows depending on object category
+    if (occupant.type === 'keep') {
+      const keepAura = svgEl('circle', {
+        cx: pos.x, cy: pos.y + 4, r: ADV_HEX_SIZE * 0.95,
+        class: `keep-pedestal owner-${occupant.ownerId || 'neutral'}`,
       });
-      img.addEventListener('mouseenter', (e) => updateInspectorUI(hex, e));
-      img.addEventListener('mousemove', (e) => updateInspectorUI(hex, e));
-      img.addEventListener('mouseleave', hideMapTooltip);
-      img.addEventListener('click', () => handleAdventureHexClick(hex));
-      svg.appendChild(img);
+      svg.appendChild(keepAura);
+    } else if (occupant.type === 'monster') {
+      const monsterAura = svgEl('circle', {
+        cx: pos.x, cy: pos.y + 2, r: ADV_HEX_SIZE * 0.85, class: 'threat-aura-pulse',
+      });
+      svg.appendChild(monsterAura);
+    } else if (occupant.type === 'treasure') {
+      const treasureAura = svgEl('circle', {
+        cx: pos.x, cy: pos.y + 2, r: ADV_HEX_SIZE * 0.75, class: 'treasure-aura-glow',
+      });
+      svg.appendChild(treasureAura);
+    }
 
-      // 3. Ownership Rings & Category Badges
-      if (occupant.ownerId) {
-        const ring = svgEl('circle', {
-          cx: pos.x, cy: pos.y, r: ADV_HEX_SIZE - 2, class: `owner-ring owner-${occupant.ownerId}`,
-        });
-        svg.appendChild(ring);
-      }
+    // 2. Object Sprite Graphic
+    let iconSize = ADV_HEX_SIZE * 1.25;
+    if (occupant.type === 'keep') iconSize = ADV_HEX_SIZE * 1.55;
 
-      // 4. Specific Badge Overlays for instant readability
-      if (occupant.type === 'keep') {
-        drawMapSvgBadge(svg, pos.x, pos.y + ADV_HEX_SIZE - 6, occupant.ownerId ? occupant.ownerId.toUpperCase() : 'CASTLE', occupant.ownerId === 'player' ? '#1565c0' : (occupant.ownerId === 'ai' ? '#c62828' : '#37474f'), '#ffffff', '#ffd54f', 8);
-      } else if (occupant.type === 'mine') {
-        const resConf = RESOURCE_CONFIG[occupant.resource];
-        if (resConf) {
-          drawMapSvgBadge(svg, pos.x + ADV_HEX_SIZE * 0.45, pos.y - ADV_HEX_SIZE * 0.45, resConf.symbol, resConf.color, resConf.text, '#212121', 10);
-        }
-      } else if (occupant.type === 'monster') {
-        const guard = occupant.guard;
-        if (guard) {
-          const creature = getCreature(guard.creatureTypeId);
-          drawMapSvgBadge(svg, pos.x, pos.y + ADV_HEX_SIZE - 6, `${guard.count}x ${creature.name}`, '#b71c1c', '#ffffff', '#ff5252', 8);
-        }
-      } else if (occupant.type === 'dwelling') {
-        const creature = occupant.creatureTypeId ? getCreature(occupant.creatureTypeId) : null;
-        if (creature) {
-          drawMapSvgBadge(svg, pos.x, pos.y + ADV_HEX_SIZE - 6, creature.name, '#2e7d32', '#ffffff', '#81c784', 8);
-        }
-      } else if (occupant.type === 'treasure') {
-        drawMapSvgBadge(svg, pos.x, pos.y + ADV_HEX_SIZE - 6, `+$${occupant.amount}`, '#ff8f00', '#3e2723', '#ffd54f', 8);
+    const img = svgEl('image', {
+      href: spritePath(occupant.spriteId),
+      x: pos.x - iconSize / 2,
+      y: pos.y - iconSize / 2 - (occupant.type === 'keep' ? 4 : 0),
+      width: iconSize,
+      height: iconSize,
+      class: `hex-object-icon object-type-${occupant.type}`,
+    });
+    img.addEventListener('mouseenter', (e) => updateInspectorUI(hex, e));
+    img.addEventListener('mousemove', (e) => updateInspectorUI(hex, e));
+    img.addEventListener('mouseleave', hideMapTooltip);
+    img.addEventListener('click', () => handleAdventureHexClick(hex));
+    svg.appendChild(img);
+  }
+
+  for (const hex of allHexes) {
+    const pos = positions.get(key(hex));
+    const occupant = state.hexes.get(key(hex));
+    if (!occupant) continue;
+
+    // 3. Ownership Rings & Category Badges
+    if (occupant.ownerId) {
+      const ring = svgEl('circle', {
+        cx: pos.x, cy: pos.y, r: ADV_HEX_SIZE - 2, class: `owner-ring owner-${occupant.ownerId}`,
+      });
+      svg.appendChild(ring);
+    }
+
+    // 4. Specific Badge Overlays for instant readability
+    if (occupant.type === 'keep') {
+      drawMapSvgBadge(svg, pos.x, pos.y + ADV_HEX_SIZE - 6, occupant.ownerId ? occupant.ownerId.toUpperCase() : 'CASTLE', occupant.ownerId === 'player' ? '#1565c0' : (occupant.ownerId === 'ai' ? '#c62828' : '#37474f'), '#ffffff', '#ffd54f', 8);
+    } else if (occupant.type === 'mine') {
+      const resConf = RESOURCE_CONFIG[occupant.resource];
+      if (resConf) {
+        drawMapSvgBadge(svg, pos.x + ADV_HEX_SIZE * 0.45, pos.y - ADV_HEX_SIZE * 0.45, resConf.symbol, resConf.color, resConf.text, '#212121', 10);
       }
+    } else if (occupant.type === 'monster') {
+      const guard = occupant.guard;
+      if (guard) {
+        const creature = getCreature(guard.creatureTypeId);
+        drawMapSvgBadge(svg, pos.x, pos.y + ADV_HEX_SIZE - 6, `${guard.count}x ${creature.name}`, '#b71c1c', '#ffffff', '#ff5252', 8);
+      }
+    } else if (occupant.type === 'dwelling') {
+      const creature = occupant.creatureTypeId ? getCreature(occupant.creatureTypeId) : null;
+      if (creature) {
+        drawMapSvgBadge(svg, pos.x, pos.y + ADV_HEX_SIZE - 6, creature.name, '#2e7d32', '#ffffff', '#81c784', 8);
+      }
+    } else if (occupant.type === 'treasure') {
+      drawMapSvgBadge(svg, pos.x, pos.y + ADV_HEX_SIZE - 6, `+$${occupant.amount}`, '#ff8f00', '#3e2723', '#ffd54f', 8);
     }
   }
 
   // Render Hero Tokens with Pedestals, Auras, and Hero Crest Badges
+  // (already its own pass after every hex tile/sprite/badge above, so
+  // hero labels are never hidden behind any of them either.)
   for (const owner of ['player', 'ai']) {
     const hero = state.heroes[owner];
     const pos = positions.get(key(hero.position));
