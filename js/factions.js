@@ -1,13 +1,16 @@
-// Content: the 4 factions (specs/005-castle-factions plan.md Decision #1
+// Content: the 5 factions (specs/005-castle-factions plan.md Decision #1
 // — replaces js/heroTypes.js; picking a faction at setup is now the same
 // choice hero type used to be, so this is that same shape plus a
-// `creatures` roster). No spell/magic stats — see specs/001-hex-heroes/
-// spec.md Non-goals.
+// `creatures` roster; Sunborn added by specs/006-sunborn-faction). No
+// spell/magic stats — see specs/001-hex-heroes/spec.md Non-goals.
 //
 // Human and Orc reuse the old Marshal/Warlord stat splits and starting
 // armies verbatim; Undead reuses the old Sentinel's stat split (fitting —
 // durable, low-attack) but not its starting army, since Peasant/Griffin
-// now belong to Human. Enkantos has no hero-type precedent to reuse.
+// now belong to Human. Enkantos and Sunborn have no hero-type precedent
+// to reuse; Sunborn's (2 attack, 3 defense) split is deliberately
+// distinct from all 4 existing combos (2/2, 3/1, 1/3, 3/0) — a
+// disciplined, defense-leaning order rather than a glass cannon.
 
 import { CREATURES } from './creatures.js';
 
@@ -55,6 +58,17 @@ export const FACTIONS = [
       { creatureTypeId: 'manananggal', count: 6 },
     ],
     spriteId: 'hero-enkantos',
+  },
+  {
+    id: 'sunborn',
+    name: 'Sunborn',
+    attack: 2,
+    defense: 3,
+    startingArmy: [
+      { creatureTypeId: 'salamander', count: 10 },
+      { creatureTypeId: 'flame-dancer', count: 6 },
+    ],
+    spriteId: 'hero-sunborn',
   },
 ];
 

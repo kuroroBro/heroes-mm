@@ -1,7 +1,8 @@
-// Content: 28 creatures across 4 factions, 7 tiers each (specs/005-castle-
-// factions plan.md Decision #2). Stats are a deliberately simplified
-// classic tactical-strategy baseline — see specs/001-hex-heroes/plan.md's Decision #2
-// for how attack/defense/hp/dmg are used in the battle damage formula, and
+// Content: 35 creatures across 5 factions, 7 tiers each (specs/005-castle-
+// factions plan.md Decision #2; Sunborn added by specs/006-sunborn-
+// faction). Stats are a deliberately simplified classic tactical-strategy
+// baseline — see specs/001-hex-heroes/plan.md's Decision #2 for how
+// attack/defense/hp/dmg are used in the battle damage formula, and
 // spec.md's Non-goals for what's intentionally NOT modeled (special
 // abilities, flying, etc.). `tier` is per-faction (1-7), not a single
 // global scale — a Human tier 4 and an Orc tier 4 aren't meant to be
@@ -9,11 +10,13 @@
 //
 // The original 10 (peasant, pikeman, archer, wolf, orc, griffin, ogre,
 // skeleton, troll, dragon) keep their exact stats verbatim, just sorted
-// into their faction; every other entry is new for this feature. Enkantos
-// is Philippine folklore, reusing this workspace's pinoy-board project's
-// creature names/flavor/art (see specs/005-castle-factions/plan.md
-// Decision #3) — its relative power ordering loosely follows pinoy-board's
-// own combat/enemies.ts maxHp/attackPower for the same creatures.
+// into their faction; every other entry in Human/Orc/Undead is new from
+// specs/005. Enkantos is Philippine folklore, reusing this workspace's
+// pinoy-board project's creature names/flavor/art (specs/005-castle-
+// factions/plan.md Decision #3) — its relative power ordering loosely
+// follows pinoy-board's own combat/enemies.ts maxHp/attackPower for the
+// same creatures. Sunborn (specs/006) is original content, not reused
+// from anywhere.
 
 export const CREATURES = [
   // --- Human (Order/chivalry) ---
@@ -51,6 +54,23 @@ export const CREATURES = [
   { id: 'aswang', name: 'Aswang', factionId: 'enkantos', tier: 5, attack: 12, defense: 9, hp: 32, speed: 6, dmgMin: 5, dmgMax: 8, ranged: false, growthPerDay: 3, spriteId: 'creature-aswang' },
   { id: 'kapre', name: 'Kapre', factionId: 'enkantos', tier: 6, attack: 11, defense: 15, hp: 60, speed: 3, dmgMin: 5, dmgMax: 9, ranged: false, growthPerDay: 2, spriteId: 'creature-kapre' },
   { id: 'bakunawa', name: 'Bakunawa', factionId: 'enkantos', tier: 7, attack: 17, defense: 15, hp: 160, speed: 6, dmgMin: 15, dmgMax: 25, ranged: false, growthPerDay: 1, spriteId: 'creature-bakunawa' },
+
+  // --- Sunborn (specs/006-sunborn-faction — a fire/light order, Phoenix
+  // as its tier-7 flagship). Stats interpolated against the tier-by-tier
+  // average of the 4 existing factions at each tier (see plan.md's stat
+  // table) rather than reusing any one faction's curve outright, so it
+  // sits alongside them without power-creeping past or undercutting any
+  // of them; Phoenix in particular targets the same creaturePower()
+  // neighborhood as Dragon/Behemoth/Bone Dragon/Bakunawa but leans harder
+  // into attack/speed than raw HP (a fast glass-cannon flier, not another
+  // lumbering dragon).
+  { id: 'spark', name: 'Spark', factionId: 'sunborn', tier: 1, attack: 2, defense: 1, hp: 4, speed: 6, dmgMin: 1, dmgMax: 2, ranged: false, growthPerDay: 9, spriteId: 'creature-spark' },
+  { id: 'salamander', name: 'Salamander', factionId: 'sunborn', tier: 2, attack: 6, defense: 4, hp: 9, speed: 5, dmgMin: 2, dmgMax: 3, ranged: false, growthPerDay: 6, spriteId: 'creature-salamander' },
+  { id: 'flame-dancer', name: 'Flame Dancer', factionId: 'sunborn', tier: 3, attack: 8, defense: 4, hp: 12, speed: 7, dmgMin: 3, dmgMax: 4, ranged: true, growthPerDay: 5, spriteId: 'creature-flame-dancer' },
+  { id: 'ash-drake', name: 'Ash Drake', factionId: 'sunborn', tier: 4, attack: 9, defense: 7, hp: 25, speed: 7, dmgMin: 4, dmgMax: 6, ranged: false, growthPerDay: 4, spriteId: 'creature-ash-drake' },
+  { id: 'sun-priest', name: 'Sun Priest', factionId: 'sunborn', tier: 5, attack: 10, defense: 8, hp: 30, speed: 5, dmgMin: 5, dmgMax: 8, ranged: true, growthPerDay: 3, spriteId: 'creature-sun-priest' },
+  { id: 'cinder-wyvern', name: 'Cinder Wyvern', factionId: 'sunborn', tier: 6, attack: 13, defense: 11, hp: 65, speed: 7, dmgMin: 7, dmgMax: 11, ranged: false, growthPerDay: 2, spriteId: 'creature-cinder-wyvern' },
+  { id: 'phoenix', name: 'Phoenix', factionId: 'sunborn', tier: 7, attack: 19, defense: 14, hp: 165, speed: 10, dmgMin: 18, dmgMax: 30, ranged: false, growthPerDay: 1, spriteId: 'creature-phoenix' },
 ];
 
 const BY_ID = new Map(CREATURES.map((c) => [c.id, c]));

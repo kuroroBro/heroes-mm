@@ -57,6 +57,14 @@ const OBJECT_SPRITES = {
   'dwelling-aswang': 'images/objects/dwelling-aswang.png',
   'dwelling-kapre': 'images/objects/dwelling-kapre.png',
   'dwelling-bakunawa': 'images/objects/dwelling-bakunawa.png',
+  // Sunborn (specs/006-sunborn-faction)
+  'dwelling-spark': 'images/objects/dwelling-spark.png',
+  'dwelling-salamander': 'images/objects/dwelling-salamander.png',
+  'dwelling-flame-dancer': 'images/objects/dwelling-flame-dancer.png',
+  'dwelling-ash-drake': 'images/objects/dwelling-ash-drake.png',
+  'dwelling-sun-priest': 'images/objects/dwelling-sun-priest.png',
+  'dwelling-cinder-wyvern': 'images/objects/dwelling-cinder-wyvern.png',
+  'dwelling-phoenix': 'images/objects/dwelling-phoenix.png',
 };
 
 const CREATURE_SPRITES = {
@@ -92,6 +100,14 @@ const CREATURE_SPRITES = {
   'creature-aswang': 'images/creatures/aswang.png',
   'creature-kapre': 'images/creatures/kapre.png',
   'creature-bakunawa': 'images/creatures/bakunawa.png',
+  // Sunborn (specs/006-sunborn-faction) — original content, not reused
+  'creature-spark': 'images/creatures/spark.png',
+  'creature-salamander': 'images/creatures/salamander.png',
+  'creature-flame-dancer': 'images/creatures/flame-dancer.png',
+  'creature-ash-drake': 'images/creatures/ash-drake.png',
+  'creature-sun-priest': 'images/creatures/sun-priest.png',
+  'creature-cinder-wyvern': 'images/creatures/cinder-wyvern.png',
+  'creature-phoenix': 'images/creatures/phoenix.png',
 };
 
 const HERO_SPRITES = {
@@ -99,6 +115,7 @@ const HERO_SPRITES = {
   'hero-orc': 'images/creatures/hero-orc.png',
   'hero-undead': 'images/creatures/hero-undead.png',
   'hero-enkantos': 'images/creatures/hero-enkantos.png',
+  'hero-sunborn': 'images/creatures/hero-sunborn.png',
 };
 
 // The battle screen's flying attack-effect icon (js/main.js's
@@ -142,6 +159,14 @@ const ATTACK_SPRITES = {
   'attack-aswang': 'images/creatures/attacks/attack-aswang.png',
   'attack-kapre': 'images/creatures/attacks/attack-kapre.png',
   'attack-bakunawa': 'images/creatures/attacks/attack-bakunawa.png',
+  // Sunborn (specs/006-sunborn-faction)
+  'attack-spark': 'images/creatures/attacks/attack-spark.png',
+  'attack-salamander': 'images/creatures/attacks/attack-salamander.png',
+  'attack-flame-dancer': 'images/creatures/attacks/attack-flame-dancer.png',
+  'attack-ash-drake': 'images/creatures/attacks/attack-ash-drake.png',
+  'attack-sun-priest': 'images/creatures/attacks/attack-sun-priest.png',
+  'attack-cinder-wyvern': 'images/creatures/attacks/attack-cinder-wyvern.png',
+  'attack-phoenix': 'images/creatures/attacks/attack-phoenix.png',
 };
 
 const ALL_SPRITES = { ...OBJECT_SPRITES, ...CREATURE_SPRITES, ...HERO_SPRITES, ...ATTACK_SPRITES };

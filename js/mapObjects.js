@@ -83,6 +83,28 @@ export const MAP_OBJECTS = [
   { hex: at(22, 13), object: { type: 'dwelling', creatureTypeId: 'kapre', ownerId: null, spriteId: 'dwelling-kapre', guard: { creatureTypeId: 'kapre', count: 3 } } },
   { hex: at(19, 13), object: { type: 'dwelling', creatureTypeId: 'bakunawa', ownerId: null, spriteId: 'dwelling-bakunawa', guard: { creatureTypeId: 'bakunawa', count: 2 } } },
 
+  // Sunborn (specs/006-sunborn-faction) — a 5th, unpaired faction, so it
+  // can't mirror creature-for-creature against a partner the way the 4
+  // above do. Instead its own 7 dwellings are split across the map's two
+  // *other* empty corners (top-right/bottom-left, themselves each other's
+  // 180°-rotation mirror under this map's own (col,row)<->(W-1-col,H-1-
+  // row) symmetry) — 4 in top-right, 3 in bottom-left. Positions chosen
+  // by brute-force search over candidate cols/rows for the 7-of-14 subset
+  // whose total hex distance from KEEP_PLAYER exactly equals its total
+  // from KEEP_AI (matches the existing 28 dwellings' own 416==416
+  // baseline); Phoenix and Cinder Wyvern (the two strongest, most
+  // strategically important) additionally sit at the two individually-
+  // perfectly-balanced positions (equal distance from both keeps) so the
+  // single most valuable dwelling isn't just aggregately fair but
+  // individually so.
+  { hex: at(16, 0), object: { type: 'dwelling', creatureTypeId: 'phoenix', ownerId: null, spriteId: 'dwelling-phoenix', guard: { creatureTypeId: 'phoenix', count: 2 } } },
+  { hex: at(19, 0), object: { type: 'dwelling', creatureTypeId: 'sun-priest', ownerId: null, spriteId: 'dwelling-sun-priest', guard: { creatureTypeId: 'sun-priest', count: 4 } } },
+  { hex: at(22, 0), object: { type: 'dwelling', creatureTypeId: 'flame-dancer', ownerId: null, spriteId: 'dwelling-flame-dancer', guard: { creatureTypeId: 'flame-dancer', count: 6 } } },
+  { hex: at(25, 0), object: { type: 'dwelling', creatureTypeId: 'spark', ownerId: null, spriteId: 'dwelling-spark', guard: { creatureTypeId: 'spark', count: 10 } } },
+  { hex: at(13, 21), object: { type: 'dwelling', creatureTypeId: 'cinder-wyvern', ownerId: null, spriteId: 'dwelling-cinder-wyvern', guard: { creatureTypeId: 'cinder-wyvern', count: 3 } } },
+  { hex: at(7, 21), object: { type: 'dwelling', creatureTypeId: 'ash-drake', ownerId: null, spriteId: 'dwelling-ash-drake', guard: { creatureTypeId: 'ash-drake', count: 5 } } },
+  { hex: at(1, 21), object: { type: 'dwelling', creatureTypeId: 'salamander', ownerId: null, spriteId: 'dwelling-salamander', guard: { creatureTypeId: 'salamander', count: 8 } } },
+
   // Wandering monsters (no dwelling — one-time XP + tile clear, not
   // recruitable). Was 2, now 6, spanning easy to very hard.
   { hex: at(4, 19), object: { type: 'monster', spriteId: 'monster', guard: { creatureTypeId: 'peasant', count: 12 } } },

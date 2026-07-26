@@ -20,8 +20,9 @@ const POOL_CAP_MULT = 10; // same ceiling v1 used for per-hex dwelling garrison
 // Decision #6) — same status as v1's MINE_YIELD table. RECRUIT_COST is
 // per unit; BUILD_COST is a one-time sink to unlock a tier without ever
 // capturing its map dwelling. Every reused creature's cost (peasant
-// through dragon) is unchanged from before this feature; the 18 new
-// entries are priced against their creaturePower()-equivalent neighbor
+// through dragon) is unchanged from before specs/005; the 18 entries
+// added there and the 7 Sunborn entries added by specs/006-sunborn-
+// faction are priced against their creaturePower()-equivalent neighbor
 // in creatures.js's tables, following the same wood/ore-early,
 // gold+scarce-resource-later pattern the original 10 already established.
 export const RECRUIT_COST = {
@@ -57,6 +58,18 @@ export const RECRUIT_COST = {
   aswang: { gold: 800, crystal: 1 },
   kapre: { gold: 1600, mercury: 1 },
   bakunawa: { gold: 2900, gems: 2, crystal: 2 },
+  // Sunborn (specs/006-sunborn-faction) — priced a step above Enkantos's
+  // equivalent tier throughout (deliberate: the newest faction shouldn't
+  // undercut existing ones), leaning on sulfur/gems as its characteristic
+  // scarce resource (brimstone/light, fitting a fire order) rather than
+  // crystal/mercury.
+  spark: { gold: 55 },
+  salamander: { gold: 230 },
+  'flame-dancer': { gold: 370 },
+  'ash-drake': { gold: 580, sulfur: 1 },
+  'sun-priest': { gold: 850, sulfur: 1 },
+  'cinder-wyvern': { gold: 1700, sulfur: 2 },
+  phoenix: { gold: 3100, gems: 2, sulfur: 2 },
 };
 
 // wood/ore figures sized against MINE_YIELD (now 20/day each) so early
@@ -98,6 +111,14 @@ export const BUILD_COST = {
   aswang: { gold: 2800, crystal: 9 },
   kapre: { gold: 4000, mercury: 9 },
   bakunawa: { gold: 7800, gems: 14 },
+  // Sunborn
+  spark: { wood: 85 },
+  salamander: { wood: 190, ore: 110 },
+  'flame-dancer': { wood: 300, ore: 190 },
+  'ash-drake': { gold: 2300, sulfur: 6 },
+  'sun-priest': { gold: 2900, sulfur: 9 },
+  'cinder-wyvern': { gold: 4200, gems: 9 },
+  phoenix: { gold: 8100, gems: 16 },
 };
 
 // The hero's own faction's 7 creatureTypeIds, in tier order (specs/005-

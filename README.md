@@ -8,9 +8,9 @@ fight tactical hex battles against an AI opponent.
 
 ## How to play
 
-1. Pick a faction (Human / Orc / Undead / Enkantos — different starting
-   army and Attack/Defense split), then **Start Game**. You and an AI
-   opponent start at opposite corners of a 15×11 hex map.
+1. Pick a faction (Human / Orc / Undead / Enkantos / Sunborn — different
+   starting army and Attack/Defense split), then **Start Game**. You and
+   an AI opponent start at opposite corners of a 15×11 hex map.
 2. Click a hex to move your hero there (pathfound automatically). Each hex
    costs 1 of your day's movement points (8/day).
 3. Walking onto an **unguarded** mine or dwelling captures it instantly —
@@ -88,9 +88,15 @@ CLI version mismatch and fell back to flat placeholder SVGs; a Codex
 upgrade resolved it and everything was regenerated as real art — the
 dwelling icons in a short follow-up pass once the placeholder look was
 reported). 6 of Enkantos's 7 attack-effect icons also reuse pinoy-board
-directly (`boardSprites/attack/enemy/`); Santilmo has no match there and
-falls back to the generic effect sprite, same as the 11 new Human/Orc/
-Undead creatures.
+directly (`boardSprites/attack/enemy/`); every other creature (including
+Santilmo) has its own dedicated generated attack-effect icon — no
+creature falls back to the generic effect sprite anymore.
+
+`specs/006-sunborn-faction` added a 5th faction, **Sunborn** — a
+fire-and-light order with a Phoenix at tier 7 (35 creatures total now,
+across 5 factions) — fully real art from the start (no placeholder
+phase): 7 creature portraits, a hero token, 7 dwelling icons, and 7
+attack-effect icons, all generated via `image-gen`.
 
 ## Deploying to GitHub Pages
 
@@ -107,7 +113,7 @@ The site is fully static — no build step.
 ```bash
 python3 -m http.server 8000   # any static server works
 # open http://localhost:8000
-node --test tests/*.test.mjs   # rules-engine unit tests (156 tests)
+node --test tests/*.test.mjs   # rules-engine unit tests (165 tests)
 ```
 
 ## Design docs (SDD)
@@ -127,7 +133,10 @@ open gate, attacker catapult) shipped on top of that, and
 [`specs/005-castle-factions/`](specs/005-castle-factions/) for splitting
 the single shared 10-creature roster into 4 factions (Human, Orc, Undead,
 Enkantos) of 7 creatures each, chosen at setup in place of the old
-hero-type pick.
+hero-type pick, and
+[`specs/006-sunborn-faction/`](specs/006-sunborn-faction/) for the 5th
+faction (Sunborn, a fire/light order with a Phoenix at tier 7) added on
+top of that same shape.
 
 Unlike this workspace's other party games, this one has no networking
 yet — v1 is a single-device hero-vs-AI game. Multiplayer, following the
