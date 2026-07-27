@@ -391,9 +391,52 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
   overflow: hidden;
   width: 100%;
   max-width: 44rem;
+  /* specs/011-map-viewport: the map is now a pannable camera, not a
+     fit-everything view — this element is the drag target, so it needs
+     to own the touch gesture itself rather than letting the browser
+     scroll the page on a one-finger swipe over it (the exact interaction
+     a phone user reaches for first). */
+  touch-action: none;
+  cursor: grab;
 }
+.adv-map-wrap.panning { cursor: grabbing; }
 .adv-body .adv-map-wrap { flex: 1 1 32rem; width: auto; }
 .hex-map { width: 100%; height: auto; display: block; }
+
+/* The camera <g> persists across renders so a recenter/AI-follow camera
+   move CSS-transitions smoothly; an active drag suspends the transition
+   (via .no-camera-transition) so 1:1 finger-tracking never visibly lags. */
+#adv-map-camera { transition: transform 320ms ease-out; }
+#adv-map-camera.no-camera-transition { transition: none; }
+
+.adv-map-controls {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 90;
+  display: flex;
+  gap: 0.4rem;
+}
+.map-control-btn {
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  border: 1px solid var(--surface-border);
+  background: rgba(20, 16, 11, 0.82);
+  color: var(--text);
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(2px);
+}
+.map-control-btn:hover { background: rgba(20, 16, 11, 0.95); }
+.map-control-btn.active {
+  background: var(--accent);
+  color: #241a10;
+  border-color: var(--accent-dark);
+}
 
 /* Inspector Card */
 .inspector-card {
@@ -574,6 +617,21 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
 @keyframes heroAuraPulse {
   0% { stroke-opacity: 0.6; fill-opacity: 0.15; }
   100% { stroke-opacity: 1; fill-opacity: 0.4; }
+}
+
+/* specs/011-map-viewport US-3: whichever hero (always an AI — the
+   player's own token never gets this) most recently moved during End
+   Day, so a camera pan to a new spot reads as "someone just went here,"
+   not just an unexplained jump. A faster, punchier pulse layered on top
+   of the hero's own ambient heroAuraPulse rather than a fixed-duration
+   timeout — it simply moves to whichever hero acts next. */
+.hero-pedestal-aura.hero-just-moved {
+  stroke-width: 7;
+  animation: heroJustMovedPulse 0.9s infinite alternate ease-in-out;
+}
+@keyframes heroJustMovedPulse {
+  0% { stroke-opacity: 0.55; fill-opacity: 0.2; }
+  100% { stroke-opacity: 1; fill-opacity: 0.55; }
 }
 
 @keyframes threatPulse {

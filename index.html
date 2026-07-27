@@ -42,7 +42,10 @@
         <li><strong>Move</strong> — click a hex once to select it (shows
           its details), click that <strong>same hex again</strong> to
           confirm and move there (pathfound automatically). Each hex
-          costs 1 of your day's movement points.</li>
+          costs 1 of your day's movement points. The map is zoomed in —
+          <strong>drag to pan</strong> around it, tap 📍 to recenter on
+          your hero, or 🗺️ for a whole-map <strong>World View</strong>
+          (tap anywhere on it to jump there).</li>
         <li>Your <strong>Keep</strong> produces 500 gold every day on its
           own, on top of anything from mines — and you can permanently
           grow that number further by upgrading your <strong>Town
@@ -82,7 +85,8 @@
           you can also <strong>Fire Catapult</strong> (free, once per
           round) at any standing wall hex to blast open a second gap.</li>
         <li>Click <strong>End Day</strong> when you're done moving — the AI
-          takes its turn, then a new day begins.</li>
+          takes its turn (the camera follows along so you can watch where
+          each one goes), then a new day begins.</li>
         <li><strong>Defeat an enemy hero's army</strong> in direct combat
           the number of times set on the setup screen (default 3, tracked
           by the ⚔️ pill) to eliminate them. Every defeat before the last
@@ -189,6 +193,10 @@
 
     <div class="adv-body">
       <div id="adv-map-wrap" class="adv-map-wrap">
+        <div class="adv-map-controls">
+          <button type="button" id="btn-recenter-map" class="map-control-btn" title="Recenter on your hero">📍</button>
+          <button type="button" id="btn-world-view" class="map-control-btn" title="World view — see the whole map">🗺️</button>
+        </div>
         <svg id="adv-map" class="hex-map"></svg>
         <div id="adv-map-tooltip" class="adv-map-tooltip" hidden></div>
       </div>

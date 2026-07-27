@@ -14,7 +14,11 @@ fight tactical hex battles against an AI opponent.
    proportionally more mines), then **Start Game**. Every hero gets a
    distinct faction and its own Keep in a different corner of the map.
 2. Click a hex to move your hero there (pathfound automatically). Each hex
-   costs 1 of your day's movement points (8/day).
+   costs 1 of your day's movement points (8/day). The map is a zoomed-in,
+   pannable camera (drag to pan, 📍 to recenter on your hero, 🗺️ for a
+   whole-map World View you can tap to jump the camera anywhere) rather
+   than the whole map squeezed to fit — built for readable/tappable hexes
+   on a phone screen.
 3. Walking onto an **unguarded** mine or dwelling captures it instantly —
    mines add resources every day, dwellings unlock that creature type at
    your **Castle**. Walking onto a **guarded** mine/dwelling, a monster
@@ -41,8 +45,9 @@ fight tactical hex battles against an AI opponent.
    attacker you can **Fire Catapult** (once per round, free, no mana) to
    blast open a second gap anywhere along the wall.
 7. Click **End Day** when you're done moving — the AI takes its full turn
-   (including its own Castle building/recruiting/spell-learning), then a
-   new day begins.
+   (including its own Castle building/recruiting/spell-learning; the
+   camera pans to follow each AI's moves with a highlight so you can
+   watch where they went), then a new day begins.
 8. **Defeat the enemy hero's army** in direct combat to win instantly.
    Otherwise, the game ends at Day 30 and whoever has the higher Kingdom
    Score (mines + unlocked creature tiers + army value) wins.
@@ -147,8 +152,11 @@ Castle's 3-level Town Hall gold-income upgrade,
 faction (Yokai, Japanese folklore culminating in Amaterasu at tier 7),
 [`specs/009-multi-ai-opponents/`](specs/009-multi-ai-opponents/)
 for choosing 1-3 AI opponents at setup instead of always exactly one,
-and [`specs/010-map-size/`](specs/010-map-size/) for the x1/x2/x4 map
-size choice, each bigger tier adding proportionally more mines.
+[`specs/010-map-size/`](specs/010-map-size/) for the x1/x2/x4 map
+size choice, each bigger tier adding proportionally more mines, and
+[`specs/011-map-viewport/`](specs/011-map-viewport/) for the pannable
+zoomed-in camera, World View toggle, and AI-turn camera-follow that
+replaced the old "whole map squeezed to fit the screen" rendering.
 
 Unlike this workspace's other party games, this one has no networking
 yet — v1 is a single-device hero-vs-AI(s) game (all AI opponents are

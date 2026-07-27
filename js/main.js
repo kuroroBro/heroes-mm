@@ -42,6 +42,54 @@ let aiDayInProgress = false;
 let pendingSpellCast = null; // spellId awaiting a battlefield target click, or null
 let pendingCatapultTarget = false; // true while picking a wall hex to fire the catapult at
 let isFinalBattle = false; // true while battleState is the Day-limit final-battle tie-breaker
+// Adventure-map camera (specs/011-map-viewport). `cameraPixel` is a
+// { x, y } point in the same full-map pixel space `layoutHexes` returns
+// (i.e. relative to the map's own top-left, independent of hex size or
+// screen size) — null means "not yet initialized this game," at which
+// point renderAdventureMap defaults it to the player hero's position.
+// Kept as a raw pixel point rather than a hex coordinate so drag-panning
+// is plain pixel arithmetic with no per-frame hex rounding.
+let cameraPixel = null;
+let worldViewActive = false; // true while the 🗺️ World View toggle is open
+let lastMovedHeroOwner = null; // owner id to pulse-highlight (specs/011-map-viewport US-3), or null
+let cameraDragState = null; // { pointerId, startX, startY, startCamX, startCamY, moved } while a pointer is down on the map
+let suppressNextMapClick = false; // set when a drag just ended, so the browser's trailing click doesn't arm/move a hero
+let dragRenderQueued = false; // rAF-batches renderAdventureMap calls during a drag so rapid pointermoves don't each force a full re-render
+// layoutHexes(rectHexes(...)) only depends on state.mapWidth/mapHeight,
+// never on hero/content positions — cached per map size so drag-panning
+// (which re-renders every animation frame) doesn't redo that sweep on
+// every frame, especially on the larger x2/x4 maps (specs/010-map-size).
+let cachedMapLayoutKey = null;
+let cachedMapLayout = null;
+function fullMapLayout(state) {
+  const cacheKey = `${state.mapWidth}x${state.mapHeight}`;
+  if (cachedMapLayoutKey !== cacheKey) {
+    cachedMapLayoutKey = cacheKey;
+    cachedMapLayout = layoutHexes(rectHexes(state.mapWidth, state.mapHeight), ADV_HEX_SIZE);
+  }
+  return cachedMapLayout;
+}
+function hexPixelPosition(state, hex) {
+  return fullMapLayout(state).positions.get(key(hex));
+}
+// Viewport size in hex columns/rows — narrower on phones (specifically
+// the complaint this feature addresses) than desktop, matching the same
+// 640px breakpoint styles.css already uses elsewhere for mobile layout.
+function adventureViewportHexCounts() {
+  return window.innerWidth < 640 ? { cols: 11, rows: 9 } : { cols: 17, rows: 13 };
+}
+function clampCameraAxis(pos, winSize, fullSize) {
+  const max = Math.max(0, fullSize - winSize);
+  return Math.min(Math.max(pos, 0), max);
+}
+// Single place that keeps worldViewActive and the 🗺️ button's visual
+// "active" state in sync — used by the button's own click as well as the
+// hex-tap-to-jump-and-exit path, so exiting world view by tapping the map
+// doesn't leave the button looking stuck on.
+function setWorldViewActive(active) {
+  worldViewActive = active;
+  $('btn-world-view')?.classList.toggle('active', active);
+}
 // Hex-key -> pixel-center map from the battle map's most recent render,
 // and its hex size — set at the end of renderBattleMap, read afterward by
 // showAttackEffects/showSpellEffect (called just after a render, never
@@ -194,6 +242,9 @@ $('btn-start-game').addEventListener('click', () => {
   const aiHeroTypeIds = otherTypes.slice(0, aiCount).map((f) => f.id);
   adventureState = createAdventure(selectedHeroTypeId, aiHeroTypeIds, { defeatsToWin, mapSize });
   aiDayInProgress = false;
+  cameraPixel = null; // re-init to the new game's player hero on first render
+  setWorldViewActive(false);
+  cachedMapLayoutKey = null; // this game's map size may differ from the last one
   resetInspectorUI();
   showScreen('screen-adventure');
   renderAdventure();
@@ -581,17 +632,66 @@ function drawMapSvgBadge(svg, cx, cy, text, bgFill = '#241a10', textFill = '#f5e
   svg.appendChild(g);
 }
 
+// specs/011-map-viewport: the map SVG's viewBox used to always cover the
+// *entire* map, stretched to fit the container width — fine at 15x11,
+// unreadable/untappable on the 30x22+ maps (specs/010-map-size) squeezed
+// into a phone screen. Now the viewBox is a fixed-size *window* (sized in
+// hex columns/rows, see adventureViewportHexCounts) that pans instead of
+// shrinking, unless worldViewActive (US-2) asks for the whole map at once
+// — same "whole map" math as before this feature, just as a toggled mode
+// rather than the only mode. Hex tiles/sprites/badges are culled to just
+// the window (+ a small buffer) so re-rendering on every drag-pan frame
+// stays cheap even on the largest x4 map.
 function renderAdventureMap() {
   const state = adventureState;
   const svg = $('adv-map');
-  svg.innerHTML = '';
-  const terrainFill = addTerrainDefs(svg);
+  const { positions, width: fullWidth, height: fullHeight } = fullMapLayout(state);
+
+  if (!cameraPixel) cameraPixel = { ...positions.get(key(state.heroes.player.position)) };
+
+  let winWidth, winHeight, winX, winY, visibleHexes;
   const allHexes = rectHexes(state.mapWidth, state.mapHeight);
-  const { positions, width, height } = layoutHexes(allHexes, ADV_HEX_SIZE);
-  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  if (worldViewActive) {
+    winWidth = fullWidth;
+    winHeight = fullHeight;
+    winX = 0;
+    winY = 0;
+    visibleHexes = allHexes;
+  } else {
+    const { cols, rows } = adventureViewportHexCounts();
+    winWidth = cols * 1.5 * ADV_HEX_SIZE + ADV_HEX_SIZE * 1.5;
+    winHeight = rows * Math.sqrt(3) * ADV_HEX_SIZE + ADV_HEX_SIZE * Math.sqrt(3);
+    winX = clampCameraAxis(cameraPixel.x - winWidth / 2, winWidth, fullWidth);
+    winY = clampCameraAxis(cameraPixel.y - winHeight / 2, winHeight, fullHeight);
+    const buffer = ADV_HEX_SIZE * 3;
+    visibleHexes = allHexes.filter((h) => {
+      const p = positions.get(key(h));
+      return p.x >= winX - buffer && p.x <= winX + winWidth + buffer && p.y >= winY - buffer && p.y <= winY + winHeight + buffer;
+    });
+  }
+  svg.setAttribute('viewBox', `0 0 ${winWidth} ${winHeight}`);
+
+  // Every hex tile/sprite/badge/hero token lives inside this one <g>,
+  // which persists across renders (only its *contents* are cleared and
+  // rebuilt) so its transform can CSS-transition smoothly on recenter/
+  // AI-follow camera moves instead of jump-cutting — a fresh element
+  // every render (the old svg.innerHTML='' approach) has no "previous
+  // value" for the browser to transition from. Defs (terrain patterns)
+  // stay a sibling of camG, rebuilt fresh each render same as before.
+  for (const child of [...svg.children]) {
+    if (child.getAttribute('id') !== 'adv-map-camera') svg.removeChild(child);
+  }
+  let camG = svg.querySelector('#adv-map-camera');
+  if (!camG) {
+    camG = svgEl('g', { id: 'adv-map-camera' });
+    svg.appendChild(camG);
+  }
+  camG.innerHTML = '';
+  camG.setAttribute('transform', `translate(${-winX} ${-winY})`);
+  const terrainFill = addTerrainDefs(svg);
 
   const inRangeHexes = new Set(
-    allHexes
+    visibleHexes
       .filter((h) => hexDistance(state.heroes.player.position, h) <= state.heroes.player.movementLeft)
       .map(key),
   );
@@ -608,7 +708,7 @@ function renderAdventureMap() {
   // failure mode already fixed once for the battle map's own per-stack
   // sprite/label rendering (see stepBattleAuto's/renderBattleMap's own
   // "two passes" comment).
-  for (const hex of allHexes) {
+  for (const hex of visibleHexes) {
     const pos = positions.get(key(hex));
     const occupant = state.hexes.get(key(hex));
     const inRange = state.phase === 'playing' && inRangeHexes.has(key(hex));
@@ -633,23 +733,23 @@ function renderAdventureMap() {
     poly.addEventListener('mousemove', (e) => updateInspectorUI(hex, e));
     poly.addEventListener('mouseleave', hideMapTooltip);
     poly.addEventListener('click', () => handleAdventureHexClick(hex));
-    svg.appendChild(poly);
+    camG.appendChild(poly);
 
     if (inRange) {
-      svg.appendChild(svgEl('polygon', { points, class: 'hex-tile-tint in-range' }));
+      camG.appendChild(svgEl('polygon', { points, class: 'hex-tile-tint in-range' }));
     }
 
     if (key(hex) === pendingMoveHexKey) {
-      svg.appendChild(svgEl('polygon', { points, class: 'hex-tile-highlight pending-move' }));
+      camG.appendChild(svgEl('polygon', { points, class: 'hex-tile-highlight pending-move' }));
     }
 
     if (isFilterMatch) {
       const highlight = svgEl('polygon', { points, class: 'hex-tile-highlight' });
-      svg.appendChild(highlight);
+      camG.appendChild(highlight);
     }
   }
 
-  for (const hex of allHexes) {
+  for (const hex of visibleHexes) {
     const pos = positions.get(key(hex));
     const occupant = state.hexes.get(key(hex));
     if (!occupant) continue;
@@ -660,17 +760,17 @@ function renderAdventureMap() {
         cx: pos.x, cy: pos.y + 4, r: ADV_HEX_SIZE * 0.95,
         class: `keep-pedestal owner-${occupant.ownerId || 'neutral'}`,
       });
-      svg.appendChild(keepAura);
+      camG.appendChild(keepAura);
     } else if (occupant.type === 'monster') {
       const monsterAura = svgEl('circle', {
         cx: pos.x, cy: pos.y + 2, r: ADV_HEX_SIZE * 0.85, class: 'threat-aura-pulse',
       });
-      svg.appendChild(monsterAura);
+      camG.appendChild(monsterAura);
     } else if (occupant.type === 'treasure') {
       const treasureAura = svgEl('circle', {
         cx: pos.x, cy: pos.y + 2, r: ADV_HEX_SIZE * 0.75, class: 'treasure-aura-glow',
       });
-      svg.appendChild(treasureAura);
+      camG.appendChild(treasureAura);
     }
 
     // 2. Object Sprite Graphic
@@ -689,10 +789,10 @@ function renderAdventureMap() {
     img.addEventListener('mousemove', (e) => updateInspectorUI(hex, e));
     img.addEventListener('mouseleave', hideMapTooltip);
     img.addEventListener('click', () => handleAdventureHexClick(hex));
-    svg.appendChild(img);
+    camG.appendChild(img);
   }
 
-  for (const hex of allHexes) {
+  for (const hex of visibleHexes) {
     const pos = positions.get(key(hex));
     const occupant = state.hexes.get(key(hex));
     if (!occupant) continue;
@@ -702,30 +802,30 @@ function renderAdventureMap() {
       const ring = svgEl('circle', {
         cx: pos.x, cy: pos.y, r: ADV_HEX_SIZE - 2, class: `owner-ring owner-${occupant.ownerId}`,
       });
-      svg.appendChild(ring);
+      camG.appendChild(ring);
     }
 
     // 4. Specific Badge Overlays for instant readability
     if (occupant.type === 'keep') {
-      drawMapSvgBadge(svg, pos.x, pos.y + ADV_HEX_SIZE - 6, occupant.ownerId ? occupant.ownerId.toUpperCase() : 'CASTLE', occupant.ownerId ? ownerColor(occupant.ownerId) : '#37474f', '#ffffff', '#ffd54f', 8);
+      drawMapSvgBadge(camG, pos.x, pos.y + ADV_HEX_SIZE - 6, occupant.ownerId ? occupant.ownerId.toUpperCase() : 'CASTLE', occupant.ownerId ? ownerColor(occupant.ownerId) : '#37474f', '#ffffff', '#ffd54f', 8);
     } else if (occupant.type === 'mine') {
       const resConf = RESOURCE_CONFIG[occupant.resource];
       if (resConf) {
-        drawMapSvgBadge(svg, pos.x + ADV_HEX_SIZE * 0.45, pos.y - ADV_HEX_SIZE * 0.45, resConf.symbol, resConf.color, resConf.text, '#212121', 10);
+        drawMapSvgBadge(camG, pos.x + ADV_HEX_SIZE * 0.45, pos.y - ADV_HEX_SIZE * 0.45, resConf.symbol, resConf.color, resConf.text, '#212121', 10);
       }
     } else if (occupant.type === 'monster') {
       const guard = occupant.guard;
       if (guard) {
         const creature = getCreature(guard.creatureTypeId);
-        drawMapSvgBadge(svg, pos.x, pos.y + ADV_HEX_SIZE - 6, `${guard.count}x ${creature.name}`, '#b71c1c', '#ffffff', '#ff5252', 8);
+        drawMapSvgBadge(camG, pos.x, pos.y + ADV_HEX_SIZE - 6, `${guard.count}x ${creature.name}`, '#b71c1c', '#ffffff', '#ff5252', 8);
       }
     } else if (occupant.type === 'dwelling') {
       const creature = occupant.creatureTypeId ? getCreature(occupant.creatureTypeId) : null;
       if (creature) {
-        drawMapSvgBadge(svg, pos.x, pos.y + ADV_HEX_SIZE - 6, creature.name, '#2e7d32', '#ffffff', '#81c784', 8);
+        drawMapSvgBadge(camG, pos.x, pos.y + ADV_HEX_SIZE - 6, creature.name, '#2e7d32', '#ffffff', '#81c784', 8);
       }
     } else if (occupant.type === 'treasure') {
-      drawMapSvgBadge(svg, pos.x, pos.y + ADV_HEX_SIZE - 6, `+$${occupant.amount}`, '#ff8f00', '#3e2723', '#ffd54f', 8);
+      drawMapSvgBadge(camG, pos.x, pos.y + ADV_HEX_SIZE - 6, `+$${occupant.amount}`, '#ff8f00', '#3e2723', '#ffd54f', 8);
     }
   }
 
@@ -742,12 +842,12 @@ function renderAdventureMap() {
     // Glowing Hero Pedestal Aura
     const heroAura = svgEl('circle', {
       cx: pos.x, cy: pos.y, r: ADV_HEX_SIZE * 1.1,
-      class: `hero-pedestal-aura owner-${owner}`,
+      class: `hero-pedestal-aura owner-${owner}${owner === lastMovedHeroOwner ? ' hero-just-moved' : ''}`,
     });
-    svg.appendChild(heroAura);
+    camG.appendChild(heroAura);
 
     // Hero Outer Ring
-    svg.appendChild(svgEl('circle', { cx: pos.x, cy: pos.y, r: ADV_HEX_SIZE - 2, class: `owner-ring owner-${owner} hero-ring` }));
+    camG.appendChild(svgEl('circle', { cx: pos.x, cy: pos.y, r: ADV_HEX_SIZE - 2, class: `owner-ring owner-${owner} hero-ring` }));
 
     // Hero Image Token
     const heroImg = svgEl('image', {
@@ -758,7 +858,7 @@ function renderAdventureMap() {
     heroImg.addEventListener('mousemove', (e) => updateInspectorUI(hero.position, e));
     heroImg.addEventListener('mouseleave', hideMapTooltip);
     heroImg.addEventListener('click', () => handleAdventureHexClick(hero.position));
-    svg.appendChild(heroImg);
+    camG.appendChild(heroImg);
 
     // Hero Level Badge — "AI{level}" for the default single-AI shape
     // (byte-identical to the original text), "AI{index} Lv{level}" once
@@ -771,12 +871,23 @@ function renderAdventureMap() {
         ? `AI${hero.level} ${heroType.name}`
         : `AI${state.aiOwners.indexOf(owner) + 1} Lv${hero.level} ${heroType.name}`;
     const [badgeColor, badgeBorder] = HERO_BADGE_COLORS[owner] || HERO_BADGE_COLORS.ai;
-    drawMapSvgBadge(svg, pos.x, pos.y - ADV_HEX_SIZE * 0.75, label, badgeColor, '#ffffff', badgeBorder, 9);
+    drawMapSvgBadge(camG, pos.x, pos.y - ADV_HEX_SIZE * 0.75, label, badgeColor, '#ffffff', badgeBorder, 9);
   }
 }
 
 function handleAdventureHexClick(hex) {
-  if (!adventureState || adventureState.phase !== 'playing' || aiDayInProgress) return;
+  // A drag-pan that just ended fires a trailing native click on whatever's
+  // under the pointer — swallow exactly that one click so panning never
+  // accidentally arms/confirms a hero move (specs/011-map-viewport).
+  if (suppressNextMapClick) { suppressNextMapClick = false; return; }
+  if (!adventureState) return;
+  if (worldViewActive) {
+    setWorldViewActive(false);
+    cameraPixel = hexPixelPosition(adventureState, hex);
+    renderAdventureMap();
+    return;
+  }
+  if (adventureState.phase !== 'playing' || aiDayInProgress) return;
   const hexKey = key(hex);
   if (pendingMoveHexKey !== hexKey) {
     pendingMoveHexKey = hexKey;
@@ -787,9 +898,101 @@ function handleAdventureHexClick(hex) {
   pendingMoveHexKey = null;
   const ok = moveHero(adventureState, 'player', hex);
   if (!ok) { renderAdventureMap(); return; }
+  cameraPixel = hexPixelPosition(adventureState, adventureState.heroes.player.position); // follow your own hero
   renderAdventure();
   if (adventureState.phase === 'battle') startBattleFromPending();
 }
+
+// ---------- Adventure map camera: drag-to-pan, recenter, world view ----------
+// Pointer Events (not mouse/touch separately) so drag-pan works identically
+// on desktop and mobile. A move under DRAG_THRESHOLD_PX stays a tap (so the
+// existing arm-then-confirm click flow above is untouched); crossing it
+// marks the gesture as a real drag, which handleAdventureHexClick's
+// suppressNextMapClick check then uses to swallow the trailing click.
+const DRAG_THRESHOLD_PX = 8;
+
+function scheduleDragRender() {
+  if (dragRenderQueued) return;
+  dragRenderQueued = true;
+  requestAnimationFrame(() => { dragRenderQueued = false; renderAdventureMap(); });
+}
+
+function setupAdventureMapPanning() {
+  const wrap = $('adv-map-wrap');
+
+  wrap.addEventListener('pointerdown', (e) => {
+    // Pointer capture below redirects every later event for this pointer
+    // (including the browser's own click synthesis) to `wrap` — without
+    // this guard, a tap starting on the 📍/🗺️ buttons (DOM children of
+    // wrap, so pointerdown on them bubbles up here first) would silently
+    // swallow their own click.
+    if (e.target.closest('.map-control-btn')) return;
+    if (!adventureState || worldViewActive) return;
+    cameraDragState = {
+      pointerId: e.pointerId, startX: e.clientX, startY: e.clientY,
+      startCamX: cameraPixel?.x ?? 0, startCamY: cameraPixel?.y ?? 0, moved: false,
+    };
+    // No setPointerCapture here — capturing on every pointerdown (even a
+    // plain tap with no movement) retargets that tap's eventual click away
+    // from whatever hex/token is actually underneath it, silently breaking
+    // ordinary tap-to-move. Capture is only taken below once a real drag
+    // is confirmed (past DRAG_THRESHOLD_PX), which is also the only case
+    // that needs it (keeping pointermove events coming even if the finger
+    // strays outside the wrap's bounds mid-drag).
+  });
+
+  wrap.addEventListener('pointermove', (e) => {
+    if (!cameraDragState || cameraDragState.pointerId !== e.pointerId) return;
+    const dxScreen = e.clientX - cameraDragState.startX;
+    const dyScreen = e.clientY - cameraDragState.startY;
+    if (!cameraDragState.moved) {
+      if (Math.hypot(dxScreen, dyScreen) < DRAG_THRESHOLD_PX) return;
+      cameraDragState.moved = true;
+      wrap.setPointerCapture(e.pointerId);
+      $('adv-map').querySelector('#adv-map-camera')?.classList.add('no-camera-transition');
+      wrap.classList.add('panning');
+    }
+    const svg = $('adv-map');
+    const rect = svg.getBoundingClientRect();
+    const viewBox = svg.viewBox.baseVal;
+    const scaleX = viewBox.width / rect.width;
+    const scaleY = viewBox.height / rect.height;
+    cameraPixel = { x: cameraDragState.startCamX - dxScreen * scaleX, y: cameraDragState.startCamY - dyScreen * scaleY };
+    scheduleDragRender();
+  });
+
+  function endDrag(e) {
+    if (!cameraDragState || cameraDragState.pointerId !== e.pointerId) return;
+    if (cameraDragState.moved) {
+      // Self-expiring rather than cleared only once "consumed" by the next
+      // hex click — otherwise a drag followed by clicking some other
+      // control (Recenter, World View, a filter button) before ever
+      // touching a hex again would leave this flag armed indefinitely,
+      // silently swallowing a later, completely unrelated tap-to-move.
+      suppressNextMapClick = true;
+      setTimeout(() => { suppressNextMapClick = false; }, 350);
+      $('adv-map').querySelector('#adv-map-camera')?.classList.remove('no-camera-transition');
+      wrap.classList.remove('panning');
+    }
+    cameraDragState = null;
+  }
+  wrap.addEventListener('pointerup', endDrag);
+  wrap.addEventListener('pointercancel', endDrag);
+
+  $('btn-recenter-map').addEventListener('click', () => {
+    if (!adventureState) return;
+    setWorldViewActive(false);
+    cameraPixel = hexPixelPosition(adventureState, adventureState.heroes.player.position);
+    renderAdventureMap();
+  });
+
+  $('btn-world-view').addEventListener('click', () => {
+    if (!adventureState) return;
+    setWorldViewActive(!worldViewActive);
+    renderAdventureMap();
+  });
+}
+setupAdventureMapPanning();
 
 $('btn-end-day').addEventListener('click', () => {
   if (!adventureState || adventureState.phase !== 'playing' || aiDayInProgress) return;
@@ -835,6 +1038,17 @@ function continueAiDay() {
     return;
   }
   const ok = moveHero(adventureState, owner, nextHex);
+  // specs/011-map-viewport US-3: pan the camera to this AI's new position
+  // (and pulse-highlight its hero) *before* rendering, so the player
+  // actually sees where each AI went during End Day instead of the view
+  // staying fixed on their own hero the whole time. Set before
+  // renderAdventure() so the same render that shows the move also carries
+  // the new camera target — #adv-map-camera's CSS transition (styles.css)
+  // turns that into a smooth glide rather than a jump-cut.
+  if (ok) {
+    cameraPixel = hexPixelPosition(adventureState, adventureState.heroes[owner].position);
+    lastMovedHeroOwner = owner;
+  }
   renderAdventure();
   if (!ok) {
     currentAiTurnIndex += 1;
@@ -847,18 +1061,31 @@ function continueAiDay() {
       startBattleFromPending(); // this AI attacked the player — interactive fight
     } else {
       autoResolveBattle();
-      setTimeout(continueAiDay, 120);
+      setTimeout(continueAiDay, AI_TURN_PACE_MS);
     }
     return;
   }
-  setTimeout(continueAiDay, 120);
+  // A real move just happened (the camera panned there) — hold a beat so
+  // it's actually visible before the next AI's turn starts; ticks that
+  // skip outright (eliminated/no movement/no target/rejected move, above)
+  // stay instant since there's nothing new on screen to see.
+  setTimeout(continueAiDay, AI_TURN_PACE_MS);
 }
+
+// specs/011-map-viewport US-3: only slows ticks where the camera actually
+// moved somewhere new (see continueAiDay) — the pre-existing 120ms pace
+// for no-op ticks (skipped/rejected moves) is untouched.
+const AI_TURN_PACE_MS = 550;
 
 function finishAiDay() {
   aiDayInProgress = false;
+  lastMovedHeroOwner = null;
   endDay(adventureState);
   for (const owner of adventureState.aiOwners) {
     if (!adventureState.heroes[owner].eliminated) chooseAiCastleActions(adventureState, owner);
+  }
+  if (adventureState.phase === 'playing') {
+    cameraPixel = hexPixelPosition(adventureState, adventureState.heroes.player.position); // ease back to the player once End Day is fully resolved
   }
   renderAdventure();
   if (adventureState.phase === 'gameover') {
