@@ -383,6 +383,32 @@ test('endDay refills movement and pays out owned mine income', () => {
   assert.equal(state.day, 2);
 });
 
+test('endDay does not refill movement/mana, accrue growth, or pay mine/Keep income for an eliminated hero', () => {
+  const state = createAdventure('human', ['orc', 'undead']);
+  let goldHex = null;
+  for (const [k, obj] of state.hexes) {
+    if (goldHex) break;
+    if (obj.type === 'mine' && obj.resource === 'gold') {
+      const [q, r] = k.split(',').map(Number);
+      goldHex = { q, r };
+      obj.ownerId = 'ai2';
+    }
+  }
+  state.heroes.ai2.eliminated = true;
+  state.heroes.ai2.movementLeft = 0;
+  state.heroes.ai2.mana = 0;
+  unlock(state.heroes.ai2, 'peasant');
+  const goldBefore = state.heroes.ai2.resources.gold;
+
+  endDay(state);
+
+  assert.equal(state.heroes.ai2.movementLeft, 0);
+  assert.equal(state.heroes.ai2.mana, 0);
+  assert.equal(state.heroes.ai2.castle.pool.peasant ?? 0, 0);
+  assert.equal(state.heroes.ai2.resources.gold, goldBefore); // no mine or Keep income
+  assert.equal(state.heroes.player.movementLeft, MOVEMENT_PER_DAY); // living heroes are unaffected
+});
+
 test('endDay adds the Town Hall gold bonus on top of the flat Keep yield, not instead of it', () => {
   const state = freshState();
   state.heroes.player.resources.gold = 5000;

@@ -452,7 +452,7 @@ export function endDay(state) {
   if (state.phase !== 'playing') return false;
 
   for (const occupant of state.hexes.values()) {
-    if (!occupant.ownerId) continue;
+    if (!occupant.ownerId || state.heroes[occupant.ownerId].eliminated) continue;
     if (occupant.type === 'mine') {
       state.heroes[occupant.ownerId].resources[occupant.resource] += MINE_YIELD[occupant.resource];
     } else if (occupant.type === 'keep') {
@@ -462,8 +462,13 @@ export function endDay(state) {
   }
 
   state.day += 1;
+  // specs/009-multi-ai-opponents: an eliminated hero is "frozen in place,
+  // no more turns" (resolveBattleOutcome) — skip them here too, else they'd
+  // keep silently accruing movement/mana/castle growth/mine-and-Keep income
+  // forever after elimination despite never being able to act on any of it.
   for (const owner of state.owners) {
     const hero = state.heroes[owner];
+    if (hero.eliminated) continue;
     hero.movementLeft = hero.movementMax;
     hero.mana = hero.manaMax;
     accrueGrowth(hero);
