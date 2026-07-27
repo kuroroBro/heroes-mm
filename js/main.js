@@ -76,7 +76,7 @@ function hexPixelPosition(state, hex) {
 // the complaint this feature addresses) than desktop, matching the same
 // 640px breakpoint styles.css already uses elsewhere for mobile layout.
 function adventureViewportHexCounts() {
-  return window.innerWidth < 640 ? { cols: 13, rows: 9 } : { cols: 19, rows: 13 };
+  return window.innerWidth < 640 ? { cols: 15, rows: 9 } : { cols: 19, rows: 13 };
 }
 function clampCameraAxis(pos, winSize, fullSize) {
   const max = Math.max(0, fullSize - winSize);

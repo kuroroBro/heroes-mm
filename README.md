@@ -35,10 +35,10 @@ fight tactical hex battles against an AI opponent.
    turn, but only once per round. Win and your surviving stacks return to
    the map with you. Lose your whole army and you respawn at your Keep
    with a fresh starting army and full mana — no permanent loss.
-6. Walking onto the **enemy's Keep** always starts a fight: their hero if
-   they're home (with a home-turf Defense bonus for them), or a **militia**
-   drafted from their Castle's recruit pool if they're away. Win the raid
-   and you loot 40% of their resources — their Castle itself is never
+6. Walking onto the **enemy's Keep** starts a fight only if their hero is
+   home (with a home-turf Defense bonus for them). If their hero is away,
+   the Keep is undefended — walking onto it instantly loots 40% of their
+   resources, no battle. Either way, their Castle itself is never
    captured; only defeating the enemy hero directly still wins the game.
    A siege battlefield has a **wall** with one open **gate** — standing
    wall hexes block movement (not ranged attacks or spells), and as the
