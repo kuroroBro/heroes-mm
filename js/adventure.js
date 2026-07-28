@@ -445,9 +445,9 @@ export function kingdomScore(state, owner) {
 }
 
 // Advance to the next day: refill movement, pay out mine income and
-// Castle pool growth, check the Day-limit/Kingdom-Score fallback win
-// condition (spec.md US-6, plan.md Decision #4). Only valid outside of an
-// active battle.
+// Castle pool growth. Only valid outside of an active battle. Does NOT
+// itself check the Day-limit/Kingdom-Score fallback win condition — see
+// checkDayLimitGameOver below.
 export function endDay(state) {
   if (state.phase !== 'playing') return false;
 
@@ -474,20 +474,31 @@ export function endDay(state) {
     accrueGrowth(hero);
   }
 
-  if (state.day > state.dayLimit) {
-    // specs/009-multi-ai-opponents: compares every *living* hero (an
-    // eliminated one has nothing left to contest), not just 2 — with
-    // exactly 2 total heroes this is identical to the original "compare
-    // playerScore/aiScore directly" logic. A tie for the single highest
-    // score is a draw, same generalization of the original tie rule.
-    const living = state.owners.filter((o) => !state.heroes[o].eliminated);
-    const scores = living.map((owner) => ({ owner, score: kingdomScore(state, owner) }));
-    const maxScore = Math.max(...scores.map((s) => s.score));
-    const leaders = scores.filter((s) => s.score === maxScore);
-    state.phase = 'gameover';
-    state.winReason = 'score';
-    state.winner = leaders.length === 1 ? leaders[0].owner : null;
-  }
+  return true;
+}
 
+// Checks the Day-limit/Kingdom-Score fallback win condition (spec.md US-6,
+// plan.md Decision #4). Deliberately *not* inline at the end of endDay:
+// main.js runs each AI's own end-of-day Castle actions (chooseAiCastleActions
+// — building/recruiting/Town Hall upgrades) after endDay returns, and those
+// actions change kingdomScore's army/castle components. Deciding the winner
+// before that Castle spending resolves, then showing the player a Kingdom
+// Score readout computed *after* it resolves, could crown a winner the
+// very same screen's own numbers contradict. Callers must run this only
+// once every living hero's end-of-day actions are actually done.
+export function checkDayLimitGameOver(state) {
+  if (state.phase !== 'playing' || state.day <= state.dayLimit) return false;
+  // specs/009-multi-ai-opponents: compares every *living* hero (an
+  // eliminated one has nothing left to contest), not just 2 — with
+  // exactly 2 total heroes this is identical to the original "compare
+  // playerScore/aiScore directly" logic. A tie for the single highest
+  // score is a draw, same generalization of the original tie rule.
+  const living = state.owners.filter((o) => !state.heroes[o].eliminated);
+  const scores = living.map((owner) => ({ owner, score: kingdomScore(state, owner) }));
+  const maxScore = Math.max(...scores.map((s) => s.score));
+  const leaders = scores.filter((s) => s.score === maxScore);
+  state.phase = 'gameover';
+  state.winReason = 'score';
+  state.winner = leaders.length === 1 ? leaders[0].owner : null;
   return true;
 }

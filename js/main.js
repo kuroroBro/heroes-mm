@@ -4,7 +4,7 @@ import { getCreature } from './creatures.js';
 import { FACTIONS, getFaction } from './factions.js';
 import { spritePath } from './sprites.js';
 import {
-  createAdventure, moveHero, endDay, kingdomScore, kingdomScoreBreakdown, getPendingBattleArmies,
+  createAdventure, moveHero, endDay, checkDayLimitGameOver, kingdomScore, kingdomScoreBreakdown, getPendingBattleArmies,
   resolveBattleOutcome, resolveFinalBattleOutcome, planMoveTowards, isSiegeBattle,
 } from './adventure.js';
 import {
@@ -1084,6 +1084,12 @@ function finishAiDay() {
   for (const owner of adventureState.aiOwners) {
     if (!adventureState.heroes[owner].eliminated) chooseAiCastleActions(adventureState, owner);
   }
+  // Only after every living hero's own end-of-day Castle actions have
+  // resolved — see checkDayLimitGameOver's own comment for why the order
+  // matters (an AI's post-endDay recruiting/building can move its Kingdom
+  // Score, so deciding the winner before that resolves could crown someone
+  // the very next line's numbers would then contradict).
+  checkDayLimitGameOver(adventureState);
   if (adventureState.phase === 'playing') {
     cameraPixel = hexPixelPosition(adventureState, adventureState.heroes.player.position); // ease back to the player once End Day is fully resolved
   }

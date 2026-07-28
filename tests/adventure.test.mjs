@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { key } from '../js/hexgrid.js';
 import {
-  createAdventure, moveHero, endDay, kingdomScore, kingdomScoreBreakdown, getPendingBattleArmies,
+  createAdventure, moveHero, endDay, checkDayLimitGameOver, kingdomScore, kingdomScoreBreakdown, getPendingBattleArmies,
   resolveBattleOutcome, resolveFinalBattleOutcome, planMoveTowards, MOVEMENT_PER_DAY, DAY_LIMIT,
   MANA_MAX, HOME_TURF_DEFENSE_BONUS, SIEGE_LOOT_FRACTION, isSiegeBattle,
   HERO_DEFEATS_TO_LOSE,
@@ -532,6 +532,7 @@ test('day-limit reached ends the game via Kingdom Score', () => {
     if (obj.type === 'mine') obj.ownerId = 'player';
   }
   endDay(state);
+  checkDayLimitGameOver(state);
   assert.equal(state.phase, 'gameover');
   assert.equal(state.winReason, 'score');
   assert.equal(state.winner, 'player');
@@ -785,6 +786,7 @@ test('endDay day-limit scoring picks the single highest-scoring living hero amon
   // Give ai2 a decisive score lead over both player and ai.
   state.heroes.ai2.army = [{ creatureTypeId: 'zombie', count: 500 }];
   endDay(state);
+  checkDayLimitGameOver(state);
   assert.equal(state.phase, 'gameover');
   assert.equal(state.winReason, 'score');
   assert.equal(state.winner, 'ai2');
@@ -796,6 +798,7 @@ test('endDay day-limit scoring excludes eliminated heroes from contention', () =
   state.heroes.ai2.army = [{ creatureTypeId: 'zombie', count: 500 }]; // would win on score...
   state.heroes.ai2.eliminated = true; // ...but is already out of the game
   endDay(state);
+  checkDayLimitGameOver(state);
   assert.notEqual(state.winner, 'ai2');
 });
 
@@ -806,9 +809,28 @@ test('endDay day-limit scoring is a draw when 2+ living heroes tie for the highe
   state.heroes.player.army = [{ creatureTypeId: 'pikeman', count: 100 }];
   state.heroes.ai2.army = [{ creatureTypeId: 'zombie', count: 100 }];
   endDay(state);
+  checkDayLimitGameOver(state);
   assert.equal(kingdomScore(state, 'player'), kingdomScore(state, 'ai2'));
   assert.equal(state.phase, 'gameover');
   assert.equal(state.winner, null);
+});
+
+test('checkDayLimitGameOver reflects Castle actions that happen after endDay (the actual bug this split fixes)', () => {
+  // Reproduces the reported scenario: at the day limit, endDay alone would
+  // have crowned the player (higher score at that instant), but the AI's
+  // own end-of-day Castle recruiting (run by main.js's finishAiDay between
+  // endDay and checkDayLimitGameOver) pushes its army value ahead before
+  // the winner is actually decided.
+  const state = createAdventure('human', ['orc', 'undead']);
+  state.day = state.dayLimit;
+  state.heroes.player.army = [{ creatureTypeId: 'pikeman', count: 50 }];
+  state.heroes.ai.army = [{ creatureTypeId: 'pikeman', count: 10 }];
+  endDay(state);
+  assert.equal(kingdomScore(state, 'player') > kingdomScore(state, 'ai'), true);
+  // Simulates the AI's post-endDay Castle recruiting overtaking the player.
+  state.heroes.ai.army = [{ creatureTypeId: 'pikeman', count: 100 }];
+  checkDayLimitGameOver(state);
+  assert.equal(state.winner, 'ai'); // reflects the score *after* Castle actions, not before
 });
 
 // ---------------------------------------------------------------------
