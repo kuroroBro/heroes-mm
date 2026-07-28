@@ -867,8 +867,14 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
      is vertical, so that same 32rem would instead force the wrapper's
      height, leaving empty bordered space below the (much shorter, once
      scaled to a narrow screen) hex grid. Reset it back to sizing from
-     actual content (the SVG's own width:100%/height:auto aspect ratio). */
-  .adv-body .adv-map-wrap { flex: 0 1 auto; }
+     actual content (the SVG's own width:100%/height:auto aspect ratio).
+     Width, though, needs an explicit 100% here: the desktop rule's own
+     `width: auto` still applies (it isn't scoped to that media query),
+     and with .adv-body's align-items:flex-start a flex item's auto width
+     is fit-content, not "fill the row" — so without this override the
+     map wrapper shrinks to the <svg>'s own rendered size instead of
+     matching the sidebar's full-width Map Inspector card below it. */
+  .adv-body .adv-map-wrap { flex: 0 1 auto; width: 100%; }
 }
 
 /* ==================================================================
