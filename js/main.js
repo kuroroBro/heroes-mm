@@ -1994,6 +1994,10 @@ function renderBattleMap(state) {
   // the hex center rather than the sprite's own bounding-box center.
   const STACK_SPRITE_SIZE = BATTLE_HEX_SIZE * 3.2;
   const STACK_SPRITE_ANCHOR = 0.62; // fraction of height above the hex center
+  // Every faction's tier-7 unit is its single flagship "boss" creature
+  // (dragon, phoenix, behemoth, ...) — rendering it at the same footprint
+  // as a tier-1 stack undersold that, so it gets a size bump here.
+  const TIER7_SPRITE_SCALE = 1.35;
 
   // Two passes: every sprite first, then every ring/label. Oversized,
   // vertically-overlapping sprites (e.g. two stacks in adjacent rows)
@@ -2023,11 +2027,12 @@ function renderBattleMap(state) {
     // (CSS) lets every click fall through to the actual hex polygon
     // underneath, which already routes clicks (including attacks/spell
     // targets) by hex coordinate regardless of which element is on top.
+    const spriteSize = STACK_SPRITE_SIZE * (creature.tier === 7 ? TIER7_SPRITE_SCALE : 1);
     const image = svgEl('image', {
       href: spritePath(creature.spriteId),
-      x: pos.x - STACK_SPRITE_SIZE / 2,
-      y: pos.y - STACK_SPRITE_SIZE * STACK_SPRITE_ANCHOR,
-      width: STACK_SPRITE_SIZE, height: STACK_SPRITE_SIZE,
+      x: pos.x - spriteSize / 2,
+      y: pos.y - spriteSize * STACK_SPRITE_ANCHOR,
+      width: spriteSize, height: spriteSize,
       class: 'battle-stack-sprite',
       'data-stack-id': stack.id,
     });
